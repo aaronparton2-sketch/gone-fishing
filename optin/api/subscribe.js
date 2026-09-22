@@ -1,5 +1,5 @@
 /**
- * POST /api/subscribe { name, email }
+ * POST /api/subscribe { name, email, favourite_fish }
  * Stores the lead (service-role, server-side) and returns the repo link.
  *
  * Same hardening as the swell-event opt-in, because a viral comment section is a
@@ -54,6 +54,7 @@ module.exports = async (req, res) => {
   const b = (req.body && typeof req.body === 'object') ? req.body : {};
   const name = clean(b.name, 60);
   const email = clean(b.email, 120).toLowerCase();
+  const fish = clean(b.favourite_fish, 40);
   if (name.length < 2) return send(res, 400, { error: 'Pop your name in.' });
   if (!EMAIL_RE.test(email)) return send(res, 400, { error: "That email doesn't look right." });
 
@@ -66,7 +67,7 @@ module.exports = async (req, res) => {
 
   const ins = await sb('gf_leads', {
     method: 'POST', headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify([{ name, email, ip_hash: h, source: 'davo' }]),
+    body: JSON.stringify([{ name, email, favourite_fish: fish || null, ip_hash: h, source: 'davo' }]),
   });
   // 409 = already signed up. Still give them the link; they asked twice.
   if (!ins.ok && ins.status !== 409) return send(res, 502, { error: 'Could not save that.' });

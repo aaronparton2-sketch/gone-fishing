@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gone Fishing | Davo by Aaron Automates</title>
-<meta name="description" content="An n8n agent that watches the wind, swell and tide, gets the boys out of bed, finds the cheapest fuel and the best pie, and puts every fish on a board nobody can lie to. Get the workflow, free.">
+<meta name="description" content="Davo is an n8n agent that reads the wind, swell and tide, prices the run, finds the cheapest fuel, polls the group chat and rings the pub on the way home. Get the whole build, free.">
 <meta property="og:title" content="Davo, the agent that runs the fishing trip">
-<meta property="og:description" content="Watches the forecast, prices the run, and puts every fish on a live board. Get the free n8n workflow.">
+<meta property="og:description" content="Reads the forecast, prices the run, polls the boys, rings the pub. Get the free n8n build.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
     --data:#0B7686;          /* ocean teal readout */
     --ok:#1D7A46;
     --tg:#2AABEE; --tg-soft:#E4F3FC; --tg-ink:#17679A;
-    --z1:#0B7686; --z2:#3C4B8F; --z3:#7457A3; --z4:#C0558A; --z5:#E0522A; --z6:#EFA23A;
+    --z1:#0B7686; --z2:#7457A3; --z3:#E0522A;
     --radius:14px;
     --display:"Bricolage Grotesque",system-ui,sans-serif;
     --body:"Inter",system-ui,sans-serif;
@@ -55,22 +55,21 @@
     box-shadow:0 1px 2px rgba(15,30,44,.14)}
   .btn-accent:hover{background:var(--accent-deep)}
   .btn-accent:active{transform:translateY(1px)}
-  .btn:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid rgba(224,82,42,.45);outline-offset:2px}
+  .btn:focus-visible,a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(224,82,42,.45);outline-offset:2px}
 
-  .hero{max-width:1060px;margin:0 auto;padding:56px 20px 24px;
+  .hero{max-width:1060px;margin:0 auto;padding:60px 20px 24px;
     display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:start}
   .hero-copy{min-width:0}
   .eyebrow{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;
     text-transform:uppercase;color:var(--data);margin-bottom:18px}
-  h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,4.7vw,54px);
-    line-height:1.05;letter-spacing:-.015em;margin-bottom:18px}
+  h1{font-family:var(--display);font-weight:800;font-size:clamp(36px,4.9vw,56px);
+    line-height:1.04;letter-spacing:-.018em;margin-bottom:18px;text-wrap:balance}
   h1 .flow{color:var(--accent)}
-  .subhead{font-size:18px;color:var(--muted);max-width:48ch;margin-bottom:26px}
-  .subhead strong{color:var(--ink);font-weight:600}
+  .subhead{font-size:18px;color:var(--muted);max-width:44ch;margin-bottom:28px}
 
-  /* the actual morning: forecast readout, the Telegram ask, the fallout */
+  /* the actual morning: forecast readout and the Telegram poll */
   .readout{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px 18px;margin-bottom:32px;max-width:540px;box-shadow:0 1px 3px rgba(15,30,44,.06)}
+    padding:16px 18px;margin-bottom:34px;max-width:520px;box-shadow:0 1px 3px rgba(15,30,44,.06)}
   .readout .meta{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);
     font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
     color:var(--muted);margin-bottom:12px}
@@ -79,11 +78,11 @@
     font-size:14.5px;line-height:1.5;margin-bottom:10px}
   .bubble .who{display:block;font-family:var(--mono);font-size:11px;font-weight:600;
     letter-spacing:.04em;color:var(--data);margin-bottom:6px}
-  .breaks{font-family:var(--mono);font-size:13px;line-height:1.8;margin:2px 0 4px}
-  .breaks .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline}
-  .breaks .row .lbl{color:var(--muted)}
-  .breaks .row b{font-weight:600}
-  .breaks .row.pick b,.breaks .row.pick .lbl{color:var(--accent)}
+  .rows{font-family:var(--mono);font-size:13px;line-height:1.8;margin:2px 0 2px}
+  .rows .row{display:grid;grid-template-columns:7ch 1fr;gap:12px;align-items:baseline}
+  .rows .row .lbl{color:var(--muted)}
+  .rows .row b{font-weight:600}
+  .rows .row.pick b,.rows .row.pick .lbl{color:var(--accent)}
   .bubble.tg{background:var(--tg-soft)}
   .bubble.tg .who{color:var(--tg-ink)}
   .tg-keys{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
@@ -92,45 +91,31 @@
   .tg-key.picked{border:2px solid var(--tg);box-shadow:0 0 0 3px rgba(42,171,238,.15)}
   .readout .coach{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line);
     font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--muted)}
-  .readout .coach .tag{color:var(--accent);font-weight:600}
+  .readout .coach .ln{display:flex;gap:8px;align-items:flex-start}
+  .readout .coach .tag{color:var(--accent);font-weight:600;flex:0 0 auto}
 
-  .inside h2{font-family:var(--display);font-size:19px;font-weight:700;margin-bottom:14px}
-  .inside ul{list-style:none}
-  .inside li{display:flex;gap:12px;align-items:flex-start;padding:7px 0;font-size:15.5px}
-  .inside li .dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%;margin-top:7px}
-  .inside li:nth-child(1) .dot{background:var(--z1)}
-  .inside li:nth-child(2) .dot{background:var(--z2)}
-  .inside li:nth-child(3) .dot{background:var(--z3)}
-  .inside li:nth-child(4) .dot{background:var(--z4)}
-  .inside li:nth-child(5) .dot{background:var(--z5)}
-  .inside li:nth-child(6) .dot{background:var(--z6)}
-  .inside li span b{font-weight:600}
-  .inside .aside{margin-top:8px;font-size:13.5px;color:var(--muted);font-style:italic}
-
-  .get{margin-top:30px;background:rgba(255,255,255,.55);border:1px solid var(--line);
-    border-radius:var(--radius);padding:18px 20px}
-  .get h2{margin-bottom:8px}
+  .get h2{font-family:var(--display);font-size:19px;font-weight:700;margin-bottom:10px}
   .get ul{list-style:none}
-  .get li{padding:5px 0;display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
-  .get li .tick{flex:0 0 auto;width:20px;height:20px;border-radius:50%;margin-top:2px;
-    background:#E7F4EC;color:var(--ok);display:flex;align-items:center;justify-content:center}
-  .get .free{margin-top:10px;font-size:14px;font-weight:600}
+  .get li{display:flex;gap:12px;align-items:flex-start;padding:6px 0;font-size:15.5px}
+  .get li .dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%;margin-top:7px}
+  .get li:nth-child(1) .dot{background:var(--z1)}
+  .get li:nth-child(2) .dot{background:var(--z2)}
+  .get li:nth-child(3) .dot{background:var(--z3)}
+  .get li b{font-weight:600}
+  .get .free{margin-top:10px;font-family:var(--mono);font-size:12.5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ok)}
 
+  /* signup card */
   .signup-card{background:var(--card);border:1px solid var(--line);border-radius:18px;
     box-shadow:0 10px 30px rgba(15,30,44,.10);padding:26px;position:sticky;top:76px}
-  .cover-wrap{margin:-26px -26px 22px;border-radius:18px 18px 0 0;overflow:hidden}
-  .cover{display:flex;min-height:216px;align-items:flex-end;justify-content:center;
-    flex-direction:column;gap:6px;padding:26px 24px 20px;text-align:right;position:relative;
-    background:linear-gradient(180deg,#0F1E2C 0%,#1D3350 40%,#7B4A5C 72%,#E0733C 100%);color:#fff;overflow:hidden}
-  .cover .stars{position:absolute;inset:0;opacity:.5;
-    background-image:radial-gradient(1.2px 1.2px at 14% 16%,#fff 50%,transparent 51%),
-      radial-gradient(1px 1px at 30% 30%,#fff 50%,transparent 51%),
-      radial-gradient(1.3px 1.3px at 64% 14%,#fff 50%,transparent 51%),
-      radial-gradient(1px 1px at 80% 26%,#fff 50%,transparent 51%)}
-  .cover svg{position:absolute;left:16px;bottom:14px;opacity:.95}
-  .cover .ct{position:relative;font-family:var(--display);font-weight:800;font-size:27px;line-height:1.05}
-  .cover .cs{position:relative;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;
-    text-transform:uppercase;opacity:.85}
+  .cover-wrap{margin:-26px -26px 22px;border-radius:18px 18px 0 0;overflow:hidden;background:#0E1B2A}
+  .cover{position:relative;height:236px}
+  .cover svg{display:block;width:100%;height:100%}
+  .cover .lab{position:absolute;left:22px;top:18px;color:#fff;pointer-events:none}
+  .cover .lab .cs{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:#F5C78A;margin-bottom:4px}
+  .cover .lab .ct{display:block;font-family:var(--display);font-weight:800;font-size:28px;line-height:1;
+    text-shadow:0 2px 12px rgba(10,20,32,.5)}
   .signup-card h2{font-family:var(--display);font-size:22px;font-weight:700;margin-bottom:6px}
   .signup-card .say{font-size:14.5px;color:var(--muted);margin-bottom:18px}
   label{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;
@@ -138,31 +123,69 @@
   .fld{margin-bottom:14px}
   input{width:100%;background:#FBF8F3;border:1px solid var(--line);color:var(--ink);
     border-radius:10px;padding:13px 14px;font:500 16px var(--body)}
+  input::placeholder{color:#A39A8E}
   input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(224,82,42,.14)}
   .submit{width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;
-    padding:15px 20px;font-family:var(--display);font-weight:700;font-size:17px}
+    padding:15px 20px;font-family:var(--display);font-weight:700;font-size:17px;margin-top:2px}
   .submit:hover{background:var(--accent-deep)}
-  .submit:disabled{opacity:.6}
+  .submit:disabled{opacity:.6;cursor:default}
   .fine{margin-top:12px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
   .err{background:#FDEDEA;border:1px solid #F3BCB0;color:#9B3016;border-radius:10px;
     padding:11px 13px;font-size:14px;margin-bottom:14px}
 
-  .done{text-align:center}
-  .done .tick-big{width:60px;height:60px;border-radius:50%;margin:2px auto 16px;
+  .tick-big{width:60px;height:60px;border-radius:50%;margin:0 auto 16px;
     background:#E7F4EC;color:var(--ok);display:flex;align-items:center;justify-content:center}
-  .done h2{margin-bottom:8px}
-  .done p{color:var(--muted);font-size:14.5px;margin-bottom:20px}
   .repo{display:inline-flex;align-items:center;gap:10px;background:#0F1E2C;color:#fff;
     border-radius:10px;padding:14px 20px;text-decoration:none;font-weight:600;font-size:15.5px}
   .repo:hover{background:#1D3350;color:#fff}
+  .done{text-align:center;padding:4px 0 2px}
+  .done h2{margin-bottom:8px}
+  .done p{color:var(--muted);font-size:14.5px;margin-bottom:18px}
+
+  /* success modal */
+  .overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    padding:20px;background:rgba(15,30,44,.58);backdrop-filter:blur(4px);
+    opacity:0;visibility:hidden;transition:opacity .22s ease,visibility 0s linear .22s}
+  .overlay.open{opacity:1;visibility:visible;transition:opacity .22s ease}
+  .modal{position:relative;background:var(--card);border-radius:20px;max-width:440px;width:100%;
+    padding:34px 28px 26px;text-align:center;box-shadow:0 30px 70px rgba(10,20,32,.38);
+    transform:translateY(14px) scale(.96);transition:transform .26s cubic-bezier(.2,.8,.2,1)}
+  .overlay.open .modal{transform:none}
+  .mclose{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:9px;
+    border:0;background:transparent;color:var(--muted);font-size:24px;line-height:1}
+  .mclose:hover{background:var(--paper);color:var(--ink)}
+  .modal .eyebrow{margin-bottom:8px}
+  .modal h2{font-family:var(--display);font-size:26px;font-weight:800;line-height:1.1;margin-bottom:8px}
+  .modal p{color:var(--muted);font-size:15px;margin-bottom:20px}
+  .modal .fine{margin-top:16px;margin-bottom:0}
 
   footer{max-width:1060px;margin:40px auto 0;padding:22px 20px 60px;border-top:1px solid var(--line);
     font-size:13.5px;color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .hide{display:none!important}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
   @media (max-width:880px){
-    .hero{grid-template-columns:1fr;gap:34px;padding-top:36px}
+    .hero{grid-template-columns:1fr;gap:36px;padding-top:38px}
     .signup-card{position:static}
+    .readout{max-width:none}
   }
+  @media (max-width:480px){
+    .site-header .bar{padding:10px 16px;gap:10px}
+    .wordmark{font-size:11.5px;letter-spacing:.08em}
+    .btn-accent{padding:9px 14px;font-size:14px}
+    .hero{padding-left:16px;padding-right:16px}
+    .subhead{font-size:17px}
+    .readout{padding:14px}
+    .rows{font-size:12.5px}
+    .signup-card{padding:22px 18px}
+    .cover-wrap{margin:-22px -18px 20px}
+    .cover{height:218px}
+    .cover .lab{left:18px;top:16px}
+    .cover .lab .ct{font-size:25px}
+    .modal{padding:30px 20px 22px}
+    footer{padding-left:16px;padding-right:16px}
+  }
+  @media (max-width:360px){.wordmark .by{display:none}}
 </style>
 </head>
 <body>
@@ -170,32 +193,29 @@
 <header class="site-header">
   <div class="bar">
     <div class="wordmark"><span class="tilde">~</span>&nbsp;DAVO <span class="by">/ by aaron automates</span></div>
-    <a class="btn btn-accent" href="#get">Get the workflow</a>
+    <a class="btn btn-accent" href="#get">Get the build</a>
   </div>
 </header>
 
 <main class="hero">
   <div class="hero-copy">
-    <div class="eyebrow">n8n · free · the whole build</div>
-    <h1>He watches the forecast so you <span class="flow">never miss a window.</span></h1>
+    <div class="eyebrow">Free n8n build</div>
+    <h1>Davo runs the fishing trip. You just <span class="flow">turn up.</span></h1>
     <p class="subhead">
-      Davo checks the wind, swell and tide every three hours. The moment all three line
-      up he works out what's biting, prices the run, finds the cheapest fuel and the best
-      pie on the way, and <strong>drops it in the group chat with a poll</strong>. Then he
-      puts every fish anyone catches on a board nobody can lie to.
+      He reads the wind, swell and tide every 3 hours, and when they line up the plan lands in the group chat with a poll.
     </p>
 
-    <div class="readout">
+    <div class="readout" role="img" aria-label="Example morning in Karratha. Davo posts the forecast, 4 knots east, 0.2 metres, glassy. Launch 8am off the ramp. Spanish mackerel biting. Fuel $2.33 a litre, 24 cents under. Split $10 each over 56.7 kilometres. A Telegram poll asks Catch fish or fold washing, and I'm in is picked.">
       <div class="meta"><span>A real morning</span><span class="ex">Karratha · live forecast</span></div>
 
       <div class="bubble">
         <span class="who">DAVO · 03:12</span>
-        <div class="breaks">
-          <div class="row pick"><span class="lbl">Forecast</span><b>4kn E · 0.2m · glassy</b><span></span></div>
-          <div class="row"><span class="lbl">Launch</span><b>8:00am off the ramp</b><span></span></div>
-          <div class="row"><span class="lbl">Biting</span><b>Spanish mackerel</b><span></span></div>
-          <div class="row"><span class="lbl">Fuel</span><b>$2.33/L · 24c under</b><span></span></div>
-          <div class="row"><span class="lbl">Split</span><b>$10 each · 56.7km</b><span></span></div>
+        <div class="rows">
+          <div class="row pick"><span class="lbl">Forecast</span><b>4kn E · 0.2m · glassy</b></div>
+          <div class="row"><span class="lbl">Launch</span><b>8:00am off the ramp</b></div>
+          <div class="row"><span class="lbl">Biting</span><b>Spanish mackerel</b></div>
+          <div class="row"><span class="lbl">Fuel</span><b>$2.33/L · 24c under</b></div>
+          <div class="row"><span class="lbl">Split</span><b>$10 each · 56.7km</b></div>
         </div>
       </div>
 
@@ -209,76 +229,184 @@
       </div>
 
       <div class="coach">
-        <span class="tag">→</span> alarm set, wheels at 6:28am, bring list sent<br>
-        <span class="tag">→</span> every fish photographed goes on the live board<br>
-        <span class="tag">→</span> boat turns for home, the pub gets a phone call
+        <span class="ln"><span class="tag">→</span><span>every fish photographed goes on the live leaderboard</span></span>
+        <span class="ln"><span class="tag">→</span><span>boat turns for home, the pub gets the call for round one</span></span>
       </div>
     </div>
 
-    <section class="inside">
-      <h2>What's actually in it</h2>
-      <ul>
-        <li><span class="dot"></span><span><b>Real wind, swell and tide.</b> Open-Meteo, free and keyless. The marine endpoint returns the actual tide, not a model of one.</span></li>
-        <li><span class="dot"></span><span><b>Genuinely cheapest fuel.</b> Live FuelWatch WA — 946 stations, today's price, filtered to your driving corridor.</span></li>
-        <li><span class="dot"></span><span><b>What's biting.</b> Reads a real reports page and pulls out the species and the ground.</span></li>
-        <li><span class="dot"></span><span><b>A leaderboard you can't lie to.</b> Photograph the fish; GPT-4o names it and sizes it.</span></li>
-        <li><span class="dot"></span><span><b>Books the pub.</b> When the boat turns for home, a real phone call gets the first round poured.</span></li>
-        <li><span class="dot"></span><span><b>A demo build with no fake data.</b> Same workflow, pointed at a coast that's on today.</span></li>
-      </ul>
-      <p class="aside">And an honest list of what has no API and how I worked around it.</p>
-    </section>
-
-    <section class="get" id="get">
+    <section class="get">
       <h2>What you get</h2>
       <ul>
-        <li><span class="tick">✓</span><span>Two n8n workflows — the real one and the demo build</span></li>
-        <li><span class="tick">✓</span><span>The leaderboard web app, source and schema</span></li>
-        <li><span class="tick">✓</span><span>This opt-in page, so you can run your own</span></li>
+        <li><span class="dot"></span><span><b>The full n8n workflow</b>, on GitHub</span></li>
+        <li><span class="dot"></span><span><b>The live leaderboard app</b>, source and schema</span></li>
+        <li><span class="dot"></span><span><b>Setup notes</b> for your own coast, chat and pub</span></li>
       </ul>
-      <p class="free">Free. MIT. No strings.</p>
+      <p class="free">Free · MIT · no strings</p>
     </section>
   </div>
 
   <aside>
-    <div class="signup-card">
+    <div class="signup-card" id="get">
       <div class="cover-wrap">
         <div class="cover">
-          <div class="stars"></div>
-          <svg width="112" height="56" viewBox="0 0 150 80" fill="none" aria-hidden="true">
-            <path d="M0 58 L150 58 L134 76 L16 76 Z" fill="#E9EEF2"/>
-            <path d="M6 58 L144 58 L132 72 L18 72 Z" fill="#FBFDFE"/>
-            <rect x="60" y="28" width="9" height="32" rx="4" fill="#3C4B5E"/>
-            <circle cx="64.5" cy="20" r="11" fill="#3C4B5E"/>
-            <path d="M69 26 L128 -12" stroke="#EFA23A" stroke-width="3.5" stroke-linecap="round"/>
+          <svg viewBox="0 0 460 236" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A tinnie sitting on glassy water at dawn. Outboard on the transom, a rod out over the bow with the line in the water, and an esky with two stubbies on the deck.">
+            <defs>
+              <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#0C1826"/>
+                <stop offset=".36" stop-color="#293963"/>
+                <stop offset=".66" stop-color="#8A4C6F"/>
+                <stop offset=".87" stop-color="#E4713F"/>
+                <stop offset="1" stop-color="#FFC479"/>
+              </linearGradient>
+              <linearGradient id="gSea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#8E5C6C"/>
+                <stop offset=".1" stop-color="#3F4F6D"/>
+                <stop offset=".38" stop-color="#1A334D"/>
+                <stop offset="1" stop-color="#091625"/>
+              </linearGradient>
+              <radialGradient id="gGlow">
+                <stop offset="0" stop-color="#FFEBB5" stop-opacity="1"/>
+                <stop offset=".38" stop-color="#FFB35F" stop-opacity=".55"/>
+                <stop offset="1" stop-color="#FFB35F" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="gHull" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#F3F6F8"/>
+                <stop offset=".55" stop-color="#C4CED7"/>
+                <stop offset="1" stop-color="#8C9BAA"/>
+              </linearGradient>
+              <clipPath id="cHull"><path d="M118 148 L121 172 C160 181 210 180 250 173 L292 165 C304 160 314 152 320 142 Q220 153 118 148 Z"/></clipPath>
+              <clipPath id="cWet"><path d="M118 148 L121 172 C160 181 210 180 250 173 L292 165 C304 160 314 152 320 142 Q220 153 118 148 Z"/><rect x="94" y="150" width="24" height="36"/></clipPath>
+              <clipPath id="cBelow"><rect x="0" y="168" width="460" height="68"/></clipPath>
+              <filter id="fBlur" x="-10%" y="-10%" width="120%" height="140%"><feGaussianBlur stdDeviation="1.3"/></filter>
+            </defs>
+
+            <!-- sky -->
+            <rect width="460" height="128" fill="url(#gSky)"/>
+            <g fill="#fff">
+              <circle cx="38" cy="26" r="1.1" opacity=".8"/><circle cx="96" cy="44" r=".8" opacity=".55"/>
+              <circle cx="160" cy="18" r="1" opacity=".7"/><circle cx="236" cy="34" r=".8" opacity=".5"/>
+              <circle cx="298" cy="14" r="1.2" opacity=".75"/><circle cx="352" cy="46" r=".8" opacity=".45"/>
+              <circle cx="426" cy="22" r="1" opacity=".7"/><circle cx="196" cy="58" r=".7" opacity=".4"/>
+            </g>
+            <ellipse cx="150" cy="94" rx="64" ry="3.4" fill="#FFC9B2" opacity=".2"/>
+            <ellipse cx="404" cy="80" rx="42" ry="2.6" fill="#FFC9B2" opacity=".16"/>
+            <g fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".5">
+              <path d="M52 100 q5 -5 10 0 q5 -5 10 0"/>
+              <path d="M80 90 q4 -4 8 0 q4 -4 8 0"/>
+            </g>
+
+            <!-- sun -->
+            <circle cx="330" cy="128" r="82" fill="url(#gGlow)"/>
+            <circle cx="330" cy="128" r="24" fill="#FFDF95"/>
+
+            <!-- sea -->
+            <rect y="128" width="460" height="108" fill="url(#gSea)"/>
+            <rect y="127.5" width="460" height="1" fill="#FFD48A" opacity=".55"/>
+            <g fill="#FFB86A">
+              <ellipse cx="330" cy="133" rx="24" ry="2" opacity=".75"/>
+              <ellipse cx="330" cy="139" rx="19" ry="1.7" opacity=".6"/>
+              <ellipse cx="330" cy="146" rx="28" ry="2" opacity=".5"/>
+              <ellipse cx="330" cy="154" rx="17" ry="1.5" opacity=".42"/>
+              <ellipse cx="330" cy="163" rx="31" ry="2" opacity=".34"/>
+              <ellipse cx="330" cy="174" rx="14" ry="1.3" opacity=".28"/>
+              <ellipse cx="330" cy="187" rx="24" ry="1.6" opacity=".2"/>
+              <ellipse cx="330" cy="203" rx="12" ry="1.2" opacity=".14"/>
+              <ellipse cx="330" cy="220" rx="20" ry="1.4" opacity=".1"/>
+            </g>
+            <ellipse cx="222" cy="169" rx="112" ry="3.2" fill="#08141F" opacity=".55"/>
+
+            <!-- boat -->
+            <g id="boat">
+              <!-- outboard -->
+              <rect x="112" y="141" width="10" height="14" fill="#2B3947"/>
+              <rect x="100" y="152" width="9" height="21" fill="#26323E"/>
+              <path d="M96 172 L114 172 L110 181 L99 181 Z" fill="#26323E"/>
+              <rect x="86" y="124" width="36" height="28" rx="8" fill="#1B2733"/>
+              <rect x="86" y="139" width="36" height="3.5" fill="#E0522A"/>
+              <rect x="91" y="129" width="14" height="4" rx="2" fill="#fff" opacity=".22"/>
+              <!-- inside of the boat (far gunwale) -->
+              <path d="M118 148 Q220 153 320 142 L316 139 Q220 146 124 144 Z" fill="#2A3744"/>
+              <!-- console + screen -->
+              <path d="M150 129 L153 116 L177 116 L177 129 Z" fill="#BFE1F5" opacity=".55"/>
+              <path d="M150 129 L153 116 L177 116 L177 129" fill="none" stroke="#E9EEF2" stroke-width="1"/>
+              <rect x="149" y="128" width="29" height="24" rx="3" fill="#3A4756"/>
+              <!-- esky -->
+              <rect x="196" y="126" width="48" height="28" rx="4" fill="#2F7CB8"/>
+              <rect x="196" y="131" width="48" height="2" fill="#1C5A8C" opacity=".7"/>
+              <rect x="193" y="121" width="54" height="10" rx="3" fill="#EDF2F6"/>
+              <rect x="211" y="116" width="18" height="5" rx="2.5" fill="#EDF2F6"/>
+              <!-- two stubbies on the lid -->
+              <g fill="#7A3E12">
+                <rect x="199" y="105" width="8" height="16" rx="2"/><rect x="201" y="98" width="4" height="8" rx="1.5"/>
+                <rect x="233" y="105" width="8" height="16" rx="2"/><rect x="235" y="98" width="4" height="8" rx="1.5"/>
+              </g>
+              <g fill="#F1E6D2"><rect x="199" y="110" width="8" height="6"/><rect x="233" y="110" width="8" height="6"/></g>
+              <g fill="#E7C36A"><rect x="200.5" y="96" width="5" height="3" rx="1"/><rect x="234.5" y="96" width="5" height="3" rx="1"/></g>
+              <g fill="#fff" opacity=".28"><rect x="200.3" y="106" width="1.4" height="13"/><rect x="234.3" y="106" width="1.4" height="13"/></g>
+              <!-- rod + reel -->
+              <path d="M262 147 L322 104" stroke="#F4C77E" stroke-width="2.6" stroke-linecap="round"/>
+              <path d="M322 104 L400 46" stroke="#F4C77E" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="273" cy="139" r="4.5" fill="#2B3947" stroke="#F4C77E" stroke-width=".9"/>
+              <!-- hull -->
+              <path d="M118 148 L121 172 C160 181 210 180 250 173 L292 165 C304 160 314 152 320 142 Q220 153 118 148 Z" fill="url(#gHull)"/>
+              <g clip-path="url(#cHull)">
+                <path d="M0 165 C160 174 260 172 460 150 L460 236 L0 236 Z" fill="#1E3D5C"/>
+                <path d="M0 162 C160 171 260 169 460 147" fill="none" stroke="#fff" stroke-width="1" opacity=".5"/>
+              </g>
+              <g clip-path="url(#cWet)"><rect y="168" width="460" height="68" fill="#14304A" opacity=".55"/></g>
+              <!-- near gunwale -->
+              <path d="M118 148 Q220 153 320 142" fill="none" stroke="#2B3947" stroke-width="3" stroke-linecap="round"/>
+              <path d="M119 151 Q220 156 319 145" fill="none" stroke="#fff" stroke-width="1" opacity=".55"/>
+              <circle cx="317" cy="140" r="2" fill="#5CF0A8"/>
+            </g>
+
+            <!-- reflection -->
+            <g clip-path="url(#cBelow)" opacity=".2" filter="url(#fBlur)">
+              <use href="#boat" transform="matrix(1 0 0 -1 0 336)"/>
+            </g>
+
+            <!-- line in the water + ripples -->
+            <path d="M400 46 Q414 100 421 152" fill="none" stroke="#fff" stroke-width=".9" opacity=".6"/>
+            <ellipse cx="421" cy="153" rx="7" ry="1.8" fill="none" stroke="#fff" stroke-width=".9" opacity=".55"/>
+            <ellipse cx="421" cy="153" rx="3" ry=".9" fill="none" stroke="#fff" stroke-width=".8" opacity=".5"/>
+            <g stroke="#fff" stroke-width="1" stroke-linecap="round" fill="none">
+              <path d="M20 180 H70" opacity=".08"/>
+              <path d="M348 174 H424" opacity=".1"/>
+              <path d="M60 198 H130" opacity=".07"/>
+              <path d="M250 204 H330" opacity=".08"/>
+              <path d="M150 218 H240" opacity=".06"/>
+              <path d="M380 212 H450" opacity=".07"/>
+              <path d="M20 228 H90" opacity=".05"/>
+            </g>
           </svg>
-          <div class="ct">Gone Fishing</div>
-          <div class="cs">the agent that runs the trip</div>
+          <div class="lab" aria-hidden="true">
+            <span class="cs">Free n8n build</span>
+            <span class="ct">Gone Fishing</span>
+          </div>
         </div>
       </div>
 
-      <div id="vForm">
+      <form id="vForm" novalidate>
         <h2>Send me the build</h2>
-        <p class="say">Tell me where to send it and the repo opens up.</p>
-        <div id="err" class="err hide"></div>
+        <p class="say">Three quick things and the repo opens up.</p>
+        <div id="err" class="err hide" role="alert"></div>
         <div class="fld"><label for="fName">Your name</label>
-          <input id="fName" type="text" maxlength="60" placeholder="Davo" autocomplete="name"></div>
+          <input id="fName" name="name" type="text" maxlength="60" placeholder="Davo" autocomplete="name" required></div>
         <div class="fld"><label for="fMail">Email</label>
-          <input id="fMail" type="email" maxlength="120" placeholder="you@example.com" autocomplete="email"></div>
-        <button class="submit" id="go">Send it over</button>
+          <input id="fMail" name="email" type="email" maxlength="120" placeholder="you@example.com" autocomplete="email" required></div>
+        <div class="fld"><label for="fFish">Favourite fish to catch</label>
+          <input id="fFish" name="favourite_fish" type="text" maxlength="60" placeholder="Dhufish" autocomplete="off" required></div>
+        <button class="submit" id="go" type="submit">Send it over</button>
         <p class="fine">No list, no drip sequence. One email if I ship something big.</p>
-      </div>
+      </form>
 
       <div id="vDone" class="done hide">
         <div class="tick-big">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
         </div>
         <h2 id="dHead">You're in.</h2>
-        <p id="dSay">Import the workflows, swap in your keys, point it at your coast.</p>
-        <a class="repo" id="dLink" href="#" target="_blank" rel="noopener">
-          <svg width="20" height="20" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.89.87 2.35.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-          Open the repo
-        </a>
-        <p class="fine" style="margin-top:18px">Star it if it's useful. Break it if it isn't.</p>
+        <p>The repo is yours. Import it, swap in your keys, point it at your coast.</p>
+        <a class="repo" id="dLink" href="#" target="_blank" rel="noopener">Open the repo</a>
       </div>
     </div>
   </aside>
@@ -289,28 +417,97 @@
   <span>MIT licensed. Go catch something.</span>
 </footer>
 
-<script>
-const $ = (id) => document.getElementById(id);
-const err = (m) => { const e = $('err'); e.textContent = m; e.classList.remove('hide'); };
+<!-- success popup -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mHead" aria-hidden="true">
+  <div class="modal">
+    <button class="mclose" type="button" id="mClose" aria-label="Close">&times;</button>
+    <div class="tick-big">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+    </div>
+    <p class="eyebrow">Free n8n build</p>
+    <h2 id="mHead">You're in.</h2>
+    <p>Import the workflow, swap in your keys, point it at your coast.</p>
+    <a class="repo" id="mLink" href="#" target="_blank" rel="noopener">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="#fff" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.89.87 2.35.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      Open the repo
+    </a>
+    <p class="fine" id="mFish">Tight lines.</p>
+  </div>
+</div>
 
-$('go').onclick = async () => {
-  $('err').classList.add('hide');
-  const body = { name: $('fName').value.trim(), email: $('fMail').value.trim() };
-  if (body.name.length < 2) return err('Pop your name in.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return err("That email doesn't look right.");
-  const b = $('go'); b.disabled = true; b.textContent = 'Sending…';
-  try {
-    const r = await fetch('/api/subscribe', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Something went wrong.');
-    $('dLink').href = d.repo;
-    $('dHead').textContent = d.returning ? ('Welcome back, ' + d.name + '.') : ("You're in, " + d.name + '.');
-    $('vForm').classList.add('hide'); $('vDone').classList.remove('hide');
-  } catch (e) { err(e.message); }
-  finally { b.disabled = false; b.textContent = 'Send it over'; }
-};
-['fName','fMail'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); }));
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $('vForm'), errBox = $('err'), btn = $('go');
+  var overlay = $('overlay'), lastFocus = null;
+
+  function showErr(m) { errBox.textContent = m; errBox.classList.remove('hide'); }
+
+  function openModal() {
+    lastFocus = document.activeElement;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { $('mLink').focus(); }, 80);
+  }
+  function closeModal() {
+    if (!overlay.classList.contains('open')) return;
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  $('mClose').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function (e) {
+    if (!overlay.classList.contains('open')) return;
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key === 'Tab') {
+      var f = [$('mClose'), $('mLink')];
+      var i = f.indexOf(document.activeElement);
+      if (e.shiftKey && (i <= 0)) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && (i === f.length - 1 || i === -1)) { e.preventDefault(); f[0].focus(); }
+    }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    errBox.classList.add('hide');
+    var body = {
+      name: $('fName').value.trim(),
+      email: $('fMail').value.trim(),
+      favourite_fish: $('fFish').value.trim()
+    };
+    if (body.name.length < 2) return showErr('Pop your name in.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return showErr("That email doesn't look right.");
+    if (!body.favourite_fish) return showErr('What do you like catching? One word will do.');
+
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      var r = await fetch('/api/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      var d = {};
+      try { d = await r.json(); } catch (_) {}
+      if (!r.ok) throw new Error(d.error || 'Something went wrong. Try again in a sec.');
+
+      var who = d.name || body.name;
+      var head = d.returning ? ('Welcome back, ' + who + '.') : ("You're in, " + who + '.');
+      var fish = body.favourite_fish;
+      if (fish.length > 1 && fish[1] === fish[1].toLowerCase()) fish = fish[0].toLowerCase() + fish.slice(1);
+
+      $('mLink').href = d.repo; $('dLink').href = d.repo;
+      $('mHead').textContent = head; $('dHead').textContent = head;
+      $('mFish').textContent = 'Tight lines on the ' + fish + '.';
+      form.classList.add('hide'); $('vDone').classList.remove('hide');
+      openModal();
+    } catch (err) {
+      showErr(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send it over';
+    }
+  });
+})();
 </script>
 </body>
 </html>
