@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="GONE FISHING">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#04101b"/><stop offset="55%" stop-color="#0a2740"/><stop offset="100%" stop-color="#0d3a55"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd26f"/><stop offset="100%" stop-color="#ff9b47"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2fe0b0"/><stop offset="100%" stop-color="#19b9d6"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="16" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <rect width="1200" height="300" fill="url(#sky)"/>
+  <circle cx="985" cy="196" r="62" fill="url(#sun)" opacity=".92" filter="url(#glow)"/>
+
+  <!-- sea -->
+  <path d="M0 214 C 150 200, 240 226, 380 216 S 620 198, 760 214 S 1010 230, 1200 208 L1200 300 L0 300 Z" fill="#0b2f4a"/>
+  <path d="M0 232 C 170 220, 260 244, 410 234 S 640 218, 800 232 S 1040 248, 1200 228 L1200 300 L0 300 Z" fill="#0e3e5f" opacity=".85"/>
+  <g stroke="#2fe0b0" stroke-width="2" opacity=".28" fill="none">
+    <path d="M70 258 q 26 -9 52 0 t 52 0"/><path d="M300 272 q 26 -9 52 0 t 52 0"/>
+    <path d="M700 264 q 26 -9 52 0 t 52 0"/><path d="M960 276 q 26 -9 52 0 t 52 0"/>
+  </g>
+
+  <!-- tinnie + angler -->
+  <g transform="translate(120,150)">
+    <path d="M0 62 L150 62 L134 92 L16 92 Z" fill="#cfd6db"/>
+    <path d="M6 62 L144 62 L132 86 L18 86 Z" fill="#eef2f4"/>
+    <rect x="60" y="30" width="10" height="34" rx="4" fill="#4a545e"/>
+    <circle cx="65" cy="20" r="12" fill="#4a545e"/>
+    <path d="M70 26 L132 -18" stroke="#c9a227" stroke-width="4" stroke-linecap="round"/>
+    <path d="M132 -18 q 26 22 12 52" stroke="#e9eef2" stroke-width="2" fill="none" opacity=".7"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="600" y="132" text-anchor="middle" font-family="Outfit, Inter, Segoe UI, sans-serif"
+        font-size="86" font-weight="900" letter-spacing="-2" fill="url(#teal)">GONE FISHING</text>
+  <text x="600" y="172" text-anchor="middle" font-family="Inter, Segoe UI, sans-serif"
+        font-size="21" fill="#9fc0d4" letter-spacing="3.6">THE AGENT THAT RUNS THE TRIP</text>
+</svg>

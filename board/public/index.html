@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Davo's Board</title>
+<meta name="description" content="A live fishing leaderboard your mates cannot lie to.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05101a; --bg2:#0a2133; --surf:rgba(255,255,255,.055); --surf2:rgba(255,255,255,.09);
+    --line:rgba(255,255,255,.12); --ink:#eaf4fb; --mut:#8ea9bd;
+    --sea:#2fe0b0; --gold:#ffc043; --silver:#c9d6e0; --bronze:#d08c50; --bad:#ff7a7a;
+    --r:20px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:
+      radial-gradient(1100px 620px at 78% -8%, rgba(47,224,176,.16), transparent 60%),
+      radial-gradient(900px 560px at 8% 4%, rgba(56,142,255,.16), transparent 62%),
+      linear-gradient(178deg, var(--bg), var(--bg2) 62%, #06141f);
+    background-attachment:fixed;
+    color:var(--ink); font-family:Inter,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 80px}
+  h1,h2,h3,.dsp{font-family:Outfit,Inter,sans-serif;letter-spacing:-.02em}
+
+  /* ---------- top bar ---------- */
+  .bar{display:flex;align-items:center;gap:12px;margin-bottom:34px}
+  .logo{width:44px;height:44px;border-radius:13px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(145deg,var(--sea),#1aa5cf);box-shadow:0 8px 22px rgba(47,224,176,.3)}
+  .bar .nm{font-family:Outfit;font-weight:800;font-size:20px;line-height:1}
+  .bar .sub{font-size:12.5px;color:var(--mut);margin-top:3px}
+  .bar .spacer{flex:1}
+  .ghost{background:var(--surf);border:1px solid var(--line);color:var(--ink);
+    border-radius:999px;padding:10px 16px;font:600 13.5px Inter;cursor:pointer}
+  .ghost:hover{background:var(--surf2)}
+
+  /* ---------- lander ---------- */
+  .hero h1{font-size:clamp(38px,8vw,60px);font-weight:800;line-height:1.02;margin:0 0 16px}
+  .hero h1 em{font-style:normal;color:var(--sea)}
+  .lede{font-size:clamp(16px,3.4vw,19px);color:#c2d6e4;line-height:1.55;margin:0 0 26px;max-width:56ch}
+  .steps{display:grid;gap:12px;margin:30px 0 34px}
+  .step{display:flex;gap:14px;align-items:flex-start;background:var(--surf);
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+  .step .n{width:30px;height:30px;border-radius:10px;flex:none;display:grid;place-items:center;
+    background:rgba(47,224,176,.15);color:var(--sea);font:800 14px Outfit}
+  .step b{display:block;font-family:Outfit;font-weight:700;font-size:16.5px;margin-bottom:3px}
+  .step p{margin:0;color:var(--mut);font-size:14.5px;line-height:1.5}
+  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{border:0;border-radius:999px;padding:16px 28px;font:700 16px Outfit;cursor:pointer;
+    background:linear-gradient(145deg,var(--sea),#19b9d6);color:#04201a;
+    box-shadow:0 12px 30px rgba(47,224,176,.32)}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.55;cursor:default;filter:none}
+  .fine{color:var(--mut);font-size:12.5px;margin-top:20px;line-height:1.55}
+
+  /* ---------- forms ---------- */
+  .card{background:var(--surf);border:1px solid var(--line);border-radius:26px;padding:26px}
+  label{display:block;font:600 13px Inter;color:#b7cdda;margin:0 0 7px;letter-spacing:.2px}
+  .fld{margin-bottom:18px}
+  input[type=text]{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--line);
+    color:var(--ink);border-radius:14px;padding:14px 15px;font:500 16px Inter;outline:none}
+  input[type=text]:focus{border-color:var(--sea);box-shadow:0 0 0 3px rgba(47,224,176,.16)}
+  .hint{font-size:12.5px;color:var(--mut);margin-top:6px}
+  .drop{display:flex;align-items:center;gap:16px;background:rgba(0,0,0,.24);
+    border:1px dashed var(--line);border-radius:18px;padding:14px}
+  .drop img{width:74px;height:74px;border-radius:50%;object-fit:cover;flex:none;
+    background:rgba(255,255,255,.08)}
+  .drop .ph{width:74px;height:74px;border-radius:50%;flex:none;display:grid;place-items:center;
+    background:rgba(255,255,255,.07);color:var(--mut);font-size:26px}
+  .err{background:rgba(255,122,122,.13);border:1px solid rgba(255,122,122,.4);color:#ffc9c9;
+    border-radius:14px;padding:12px 14px;font-size:14px;margin-bottom:16px}
+  .ok{background:rgba(47,224,176,.12);border:1px solid rgba(47,224,176,.4);color:#b9ffe9;
+    border-radius:14px;padding:12px 14px;font-size:14px;margin-bottom:16px}
+
+  /* ---------- board ---------- */
+  .bhead{display:flex;align-items:baseline;gap:12px;margin:0 0 18px}
+  .bhead h2{margin:0;font-size:30px;font-weight:800}
+  .live{display:flex;align-items:center;gap:7px;color:var(--mut);font-size:12.5px;margin-left:auto}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--sea);animation:blip 1.8s infinite}
+  @keyframes blip{0%{box-shadow:0 0 0 0 rgba(47,224,176,.6)}70%{box-shadow:0 0 0 9px rgba(47,224,176,0)}100%{box-shadow:0 0 0 0 rgba(47,224,176,0)}}
+  .row{display:flex;align-items:center;gap:15px;background:var(--surf);border:1px solid var(--line);
+    border-radius:var(--r);padding:14px 16px;margin-bottom:11px}
+  .row.r1{background:linear-gradient(100deg,rgba(255,192,67,.16),var(--surf) 58%);border-color:rgba(255,192,67,.4)}
+  .row.r2{border-color:rgba(201,214,224,.32)}
+  .row.r3{border-color:rgba(208,140,80,.36)}
+  .rank{width:34px;font:800 19px Outfit;text-align:center;flex:none;color:var(--mut)}
+  .r1 .rank{color:var(--gold)} .r2 .rank{color:var(--silver)} .r3 .rank{color:var(--bronze)}
+  .av{width:54px;height:54px;border-radius:50%;object-fit:cover;flex:none;background:rgba(255,255,255,.08)}
+  .avph{width:54px;height:54px;border-radius:50%;flex:none;display:grid;place-items:center;
+    background:rgba(255,255,255,.09);font:700 19px Outfit;color:var(--mut)}
+  .who{flex:1;min-width:0}
+  .who b{display:block;font-family:Outfit;font-weight:700;font-size:17.5px;line-height:1.15}
+  .who span{display:block;color:var(--mut);font-size:13px;margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pts{text-align:right;flex:none}
+  .pts b{display:block;font:800 22px Outfit;line-height:1}
+  .pts span{display:block;color:var(--mut);font-size:11.5px;margin-top:3px;letter-spacing:.6px}
+  .empty{text-align:center;color:var(--mut);padding:40px 10px;font-size:15px;line-height:1.6}
+  .hide{display:none!important}
+  a{color:var(--sea)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bar">
+    <div class="logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="#04201a">
+        <path d="M2 12s3.6-5.6 9.2-5.6c3.5 0 6.2 2 7.8 3.7L22 6.6v10.8l-3-3.5c-1.6 1.7-4.3 3.7-7.8 3.7C5.6 17.6 2 12 2 12zm7.6-1.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nm">Davo's Board</div>
+      <div class="sub">live catch leaderboard</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="navBoard">The board</button>
+  </div>
+
+  <!-- ============ LANDER ============ -->
+  <section id="vLand" class="hero">
+    <h1>Every fish goes on<br>the board. <em>No stories.</em></h1>
+    <p class="lede">
+      Davo is the agent that runs our fishing trips. When the forecast lines up he
+      plans the run, gets the boys out of bed and books the pub for the way home.
+      This is the part that settles arguments: every fish anyone catches is
+      photographed, identified and measured, and it lands here in front of everyone.
+    </p>
+
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div>
+        <b>Get on the board</b><p>Name, a photo of your ugly head, and the fish you actually want to catch.</p></div></div>
+      <div class="step"><div class="n">2</div><div>
+        <b>Send Davo your catch</b><p>Photograph the fish. He works out the species and the length himself.</p></div></div>
+      <div class="step"><div class="n">3</div><div>
+        <b>The board updates live</b><p>Points are just centimetres. Biggest fish wins. Nothing to argue about.</p></div></div>
+    </div>
+
+    <div class="cta">
+      <button class="btn" id="goJoin">Get on the board</button>
+      <button class="ghost" id="goBoard2">See who's winning</button>
+    </div>
+    <p class="fine">
+      You need a crew code from whoever runs your group. We don't ask for an email,
+      a password or a phone number, and there's nothing to log into.
+    </p>
+  </section>
+
+  <!-- ============ SIGN UP ============ -->
+  <section id="vJoin" class="hide">
+    <div class="bhead"><h2>Get on the board</h2></div>
+    <div class="card">
+      <div id="jErr" class="err hide"></div>
+      <div class="fld">
+        <label for="fName">What do the boys call you</label>
+        <input id="fName" type="text" maxlength="40" placeholder="Davo" autocomplete="off">
+      </div>
+      <div class="fld">
+        <label for="fFish">Favourite fish to catch</label>
+        <input id="fFish" type="text" maxlength="40" placeholder="Dhufish" autocomplete="off">
+      </div>
+      <div class="fld">
+        <label for="fGroup">Crew code</label>
+        <input id="fGroup" type="text" maxlength="16" placeholder="BOYS" autocomplete="off" style="text-transform:uppercase">
+        <div class="hint">Whoever set your crew up has this.</div>
+      </div>
+      <div class="fld">
+        <label>Photo of you</label>
+        <div class="drop">
+          <div class="ph" id="avPh">🎣</div>
+          <img class="av hide" id="avImg" alt="">
+          <div style="flex:1">
+            <button class="ghost" id="pickBtn" type="button">Choose a photo</button>
+            <div class="hint" id="picHint">Optional. Squared and shrunk on your phone before it's sent.</div>
+          </div>
+        </div>
+        <input id="fPic" type="file" accept="image/*" class="hide">
+      </div>
+      <button class="btn" id="submitJoin" style="width:100%">Put me on the board</button>
+    </div>
+  </section>
+
+  <!-- ============ BOARD ============ -->
+  <section id="vBoard" class="hide">
+    <div class="bhead">
+      <h2 id="bName">The board</h2>
+      <div class="live"><span class="dot"></span><span id="bWhen">loading…</span></div>
+    </div>
+    <div id="bOk" class="ok hide"></div>
+    <div id="bErr" class="err hide"></div>
+    <div id="bRows"></div>
+    <div class="cta" style="margin-top:22px">
+      <button class="ghost" id="backHome">Back</button>
+      <button class="ghost" id="goJoin2">Get on the board</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const VIEWS = { land: $('vLand'), join: $('vJoin'), board: $('vBoard') };
+let GROUP = (new URLSearchParams(location.search).get('crew') || 'BOYS').toUpperCase();
+let photoData = null, timer = null;
+
+function show(v){
+  Object.values(VIEWS).forEach(s => s.classList.add('hide'));
+  VIEWS[v].classList.remove('hide');
+  clearInterval(timer);
+  if (v === 'board'){ loadBoard(); timer = setInterval(loadBoard, 10000); }
+  window.scrollTo({top:0});
+}
+$('goJoin').onclick = () => { $('fGroup').value = GROUP; show('join'); };
+$('goJoin2').onclick = () => { $('fGroup').value = GROUP; show('join'); };
+$('goBoard2').onclick = () => show('board');
+$('navBoard').onclick = () => show('board');
+$('backHome').onclick = () => show('land');
+
+/* Downscale in the browser so a 4MB phone photo becomes a ~40KB square. Keeps the
+   payload small, keeps the row small, and means the server cap is never the thing
+   a real person hits. */
+$('pickBtn').onclick = () => $('fPic').click();
+$('fPic').onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { jErr('That is not an image.'); return; }
+  const fr = new FileReader();
+  fr.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const S = 512, c = document.createElement('canvas');
+      c.width = c.height = S;
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, S, S);
+      photoData = c.toDataURL('image/jpeg', 0.82);
+      $('avImg').src = photoData; $('avImg').classList.remove('hide'); $('avPh').classList.add('hide');
+      $('picHint').textContent = Math.round(photoData.length/1024) + 'KB, ready to go.';
+    };
+    img.onerror = () => jErr('Could not read that image.');
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(f);
+};
+
+function jErr(m){ const e=$('jErr'); e.textContent=m; e.classList.remove('hide'); }
+function jClear(){ $('jErr').classList.add('hide'); }
+
+$('submitJoin').onclick = async () => {
+  jClear();
+  const body = {
+    name: $('fName').value.trim(),
+    favourite_fish: $('fFish').value.trim(),
+    group_code: $('fGroup').value.trim().toUpperCase(),
+    photo: photoData,
+  };
+  if (body.name.length < 2) return jErr('Give us a name.');
+  if (!/^[A-Z0-9-]{3,16}$/.test(body.group_code)) return jErr('Crew code is letters and numbers, 3 to 16 characters.');
+  const btn = $('submitJoin'); btn.disabled = true; btn.textContent = 'Adding you…';
+  try{
+    const r = await fetch('/api/join', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not add you.');
+    GROUP = d.angler.group_code;
+    show('board');
+    const ok = $('bOk'); ok.textContent = 'You’re on, ' + d.angler.name + '. Go catch something.';
+    ok.classList.remove('hide'); setTimeout(()=>ok.classList.add('hide'), 6000);
+  }catch(err){ jErr(err.message); }
+  finally{ btn.disabled = false; btn.textContent = 'Put me on the board'; }
+};
+
+function ago(iso){
+  if(!iso) return 'no catches yet';
+  const s = Math.max(0,(Date.now()-new Date(iso))/1000);
+  if(s<90) return 'just now';
+  if(s<5400) return Math.round(s/60)+' min ago';
+  if(s<172800) return Math.round(s/3600)+' hr ago';
+  return Math.round(s/86400)+' days ago';
+}
+function initials(n){ return n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadBoard(){
+  try{
+    const r = await fetch('/api/leaderboard?group=' + encodeURIComponent(GROUP));
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not load the board.');
+    $('bErr').classList.add('hide');
+    $('bName').textContent = d.group.name;
+    $('bWhen').textContent = 'live · updated ' + new Date(d.updated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const box = $('bRows');
+    if (!d.anglers.length){
+      box.innerHTML = '<div class="empty">Nobody on this board yet.<br>Be the first and the record is automatically yours.</div>';
+      return;
+    }
+    box.innerHTML = d.anglers.map(a => {
+      const av = a.photo ? '<img class="av" src="'+a.photo+'" alt="">'
+                         : '<div class="avph">'+esc(initials(a.name))+'</div>';
+      const line = a.best ? esc(a.best.species)+' · '+a.best.length_cm+'cm · '+ago(a.last)
+                          : (a.favourite_fish ? 'after a '+esc(a.favourite_fish) : 'no catches yet');
+      return '<div class="row r'+a.rank+'">'
+        + '<div class="rank">'+a.rank+'</div>'+av
+        + '<div class="who"><b>'+esc(a.name)+'</b><span>'+line+'</span></div>'
+        + '<div class="pts"><b>'+a.points+'</b><span>'+(a.catches===1?'1 FISH':a.catches+' FISH')+'</span></div>'
+        + '</div>';
+    }).join('');
+  }catch(err){
+    const e=$('bErr'); e.textContent=err.message; e.classList.remove('hide');
+    $('bWhen').textContent='offline';
+  }
+}
+if (new URLSearchParams(location.search).has('board')) show('board');
+</script>
+</body>
+</html>

@@ -1,0 +1,1388 @@
+{
+  "name": "DAVO - FILMING (live forecast, one manual click)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "name": "Every 3 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1120,
+        300
+      ],
+      "id": "298d802b-cd12-4b6d-aae4-711c0fabbb10"
+    },
+    {
+      "parameters": {},
+      "name": "Run it now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        480
+      ],
+      "id": "e32a61d7-0acc-40d2-84cb-2beaa671d4cf"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Everything tunable in one node, so nothing downstream needs editing.\nreturn [{ json: {\n  crew: 'BOYS',\n  crew_size: 4,\n  home: { name: 'Karratha', lat: -20.736, lon: 116.846 },\n  ramp: { name: 'the ramp', lat: -20.62, lon: 117.19 },\n  gate: {\n    max_wind_kn: 11,\n    offshore_from: 45, offshore_to: 135,   // easterly quadrant = offshore on a west coast\n    max_wave_m: 1.0,\n    min_tide_move_m: 0.15,                 // Perth is microtidal; 0.35 could never fire\n    min_hours: 4\n  },\n  vehicle: { l_per_100km: 14 },          // 4WD towing a boat. Be honest about it.\n  bring: ['rods + tackle', 'licence', 'sunnies', 'a jumper for the run out', 'esky'],\n  board_url: 'https://gone-fishing-board.vercel.app',\n  pub: { name: 'the pub', phone: '+61800000000' }\n} }];"
+      },
+      "name": "Davo settings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        380
+      ],
+      "notes": "Crew, ramp, the gates and the bring-list. Nothing else needs editing.",
+      "id": "2743a2d7-65fc-46dc-9803-8b3e418582db"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=-20.736&longitude=116.846&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=kn&timezone=Australia%2FPerth&forecast_days=7",
+        "options": {}
+      },
+      "name": "Wind forecast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -660,
+        240
+      ],
+      "notes": "Open-Meteo. Free, no key. wind_speed_unit=kn so no conversion is needed.",
+      "id": "f568f9cd-2ee4-4856-8477-4c42435713dc"
+    },
+    {
+      "parameters": {
+        "url": "https://marine-api.open-meteo.com/v1/marine?latitude=-20.736&longitude=116.846&hourly=wave_height,wave_period,sea_level_height_msl&timezone=Australia%2FPerth&forecast_days=7",
+        "options": {}
+      },
+      "name": "Marine forecast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -660,
+        520
+      ],
+      "notes": "sea_level_height_msl IS the tide. Not a model of one.",
+      "id": "17d6e7cd-76a5-4e98-8747-e0d961e3dd98"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge the two Open-Meteo responses into one hourly series and hunt for a run of\n// daylight hours where wind, swell AND tide are all good at the same time.\nconst cfg = $('Davo settings').first().json;\nconst wx = $('Wind forecast').first().json;\nconst mar = $('Marine forecast').first().json;\nconst g = cfg.gate;\n\nconst hours = wx.hourly.time.map(function (iso, i) {\n  return { iso: iso, hour: parseInt(iso.slice(11, 13), 10),\n           wind_kn: wx.hourly.wind_speed_10m[i],\n           wind_dir: wx.hourly.wind_direction_10m[i],\n           temp: wx.hourly.temperature_2m[i],\n           wave_m: mar.hourly.wave_height[i],\n           tide_m: mar.hourly.sea_level_height_msl[i] };\n});\nconst good = function (h) {\n  return h.hour >= 5 && h.hour <= 18 && h.wind_kn != null && h.wave_m != null\n      && h.wind_kn <= g.max_wind_kn\n      && h.wind_dir >= g.offshore_from && h.wind_dir <= g.offshore_to\n      && h.wave_m <= g.max_wave_m;\n};\n\n// EVERY unbroken run, not just the longest: one tide-dead window must not veto a\n// perfectly fishable one later in the week.\nconst runs = []; let run = [];\nhours.forEach(function (h) { if (good(h)) run.push(h); else { if (run.length) runs.push(run); run = []; } });\nif (run.length) runs.push(run);\n\nconst swing = function (r) {\n  const t = r.map(function (x) { return x.tide_m; }).filter(function (x) { return x != null; });\n  return t.length ? Math.max.apply(null, t) - Math.min.apply(null, t) : 0;\n};\nconst longEnough = runs.filter(function (r) { return r.length >= g.min_hours; });\nconst fishable = longEnough.filter(function (r) { return swing(r) >= g.min_tide_move_m; });\n\nif (!fishable.length) {\n  return [{ json: { window_on: false,\n    reason: longEnough.length ? 'tide barely moves' : 'no window',\n    checked: cfg.home.name } }];\n}\nfishable.sort(function (a, b) { return b.length - a.length || swing(b) - swing(a); });\nconst best = fishable[0];\nconst tides = best.map(function (h) { return h.tide_m; });\nconst avg = function (a) { return a.reduce(function (x, y) { return x + y; }, 0) / a.length; };\nconst DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];\nlet peak = 0; tides.forEach(function (v, i) { if (v > tides[peak]) peak = i; });\n\nreturn [{ json: {\n  window_on: true,\n  place: cfg.home.name,\n  date_iso: best[0].iso.slice(0, 10),\n  hours: best.length,\n  wind_kn: Math.round(avg(best.map(function (h) { return h.wind_kn; }))),\n  wind_dir: DIRS[Math.round(avg(best.map(function (h) { return h.wind_dir; })) / 22.5) % 16],\n  wave_m: +avg(best.map(function (h) { return h.wave_m; })).toFixed(1),\n  temp_max: Math.round(Math.max.apply(null, best.map(function (h) { return h.temp; }))),\n  tide_move_m: +swing(best).toFixed(2),\n  tide_turns_iso: best[peak].iso,\n  checked_at: new Date().toISOString()\n} }];"
+      },
+      "name": "Score the window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        380
+      ],
+      "notes": "Wind + swell + tide must all be good in the SAME daylight run of hours.",
+      "id": "1c3fd1a2-4f77-4b8e-94ff-648294eebf91"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.window_on }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Is it on?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -200,
+        380
+      ],
+      "id": "0d2e60a8-e286-4965-89b1-a1e6cec2b4b8"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=😴 <b>Not today.</b> {{ $json.reason }} off {{ $json.checked }}.",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Not today",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        20,
+        560
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "071652f1-3529-4449-91dc-a313c5a78e70"
+    },
+    {
+      "parameters": {
+        "url": "https://www.fishingstatus.com/fishingreports/wa",
+        "options": {}
+      },
+      "name": "Fishing reports",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        120
+      ],
+      "notes": "No fishing-report API exists anywhere. Fetch the page, let the model read it.",
+      "id": "efa3f427-b158-46eb-a51e-97c9916d791e"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "options": {},
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENAI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model:'gpt-4o-mini', max_tokens:150, messages:[{role:'user',content: \"Here is the HTML of a Western Australian fishing reports page. Reply with ONLY a JSON object, no prose, no code fence: {\\\"species\\\":\\\"<the species most reported right now>\\\",\\\"spot\\\":\\\"<a named spot or ground if one is mentioned>\\\",\\\"depth_m\\\":<number or null>}. If the page does not say, use your knowledge of what is running off Perth this month. Keep species and spot under 6 words each.\" + '\\n\\n' + String($json.data || '').replace(/<script[\\s\\S]*?<\\/script>/gi,'').slice(0,12000)}]}) }}"
+      },
+      "name": "What is biting (GPT-4o)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        120
+      ],
+      "notes": "gpt-4o-mini is plenty for pulling two fields out of a page, and ~20x cheaper.",
+      "id": "d70832fa-2ac1-485e-a6b5-cba07588927d"
+    },
+    {
+      "parameters": {
+        "jsCode": "// GPT-4o read the reports page. Keep it defensive: a bad reply must never stop\n// the trip going out, it just means we fall back to a generic spot.\nconst raw = ($json.choices && $json.choices[0] && $json.choices[0].message.content) || '';\nlet out;\ntry { out = JSON.parse(String(raw).replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()); }\ncatch (e) { out = null; }\n\nif (!out || !out.species) {\n  return [{ json: { species: 'whatever is down there', spot: 'the usual lumps',\n                    depth_m: null, source: 'fallback (could not read the reports)' } }];\n}\nreturn [{ json: {\n  species: String(out.species).slice(0, 60),\n  spot: String(out.spot || 'the usual lumps').slice(0, 60),\n  depth_m: out.depth_m || null,\n  source: 'fishing reports'\n} }];"
+      },
+      "name": "What is biting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        120
+      ],
+      "notes": "Falls back to a generic spot rather than stopping the trip.",
+      "id": "8993ebd2-30a7-4abe-9144-0b2104321a62"
+    },
+    {
+      "parameters": {
+        "url": "https://router.project-osrm.org/route/v1/driving/116.846,-20.736;117.19,-20.62?overview=false",
+        "options": {}
+      },
+      "name": "Route to the ramp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        300
+      ],
+      "notes": "OSRM public router. Real roads, real drive time, free and keyless.",
+      "id": "4241b226-168e-4c6f-ae78-ed554f649c73"
+    },
+    {
+      "parameters": {
+        "url": "https://www.fuelwatch.wa.gov.au/api/sites?fuelType=ULP",
+        "options": {}
+      },
+      "name": "Fuel prices (FuelWatch WA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        440
+      ],
+      "notes": "Real WA government API. 946 stations, today's price, lat/long on each.",
+      "id": "e67d3714-393b-40d0-a914-9c0b543bf6bf"
+    },
+    {
+      "parameters": {
+        "jsCode": "// FuelWatch returns every station in WA. Keep the ones actually near the drive and\n// take the cheapest. Prices are in CENTS, hence the /100.\nconst cfg = $('Davo settings').first().json;\nconst sites = Array.isArray($json) ? $json : ($json.body || []);\nconst A = cfg.home, B = cfg.ramp;\n\nconst km = function (lat1, lon1, lat2, lon2) {\n  const R = 6371, r = Math.PI / 180;\n  const a = Math.sin((lat2 - lat1) * r / 2) ** 2 +\n            Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin((lon2 - lon1) * r / 2) ** 2;\n  return 2 * R * Math.asin(Math.sqrt(a));\n};\n// crude corridor test: within 30km of the straight line between home and the ramp\nconst near = sites.filter(function (s) {\n  const ad = s.address || {};\n  if (!ad.latitude || !s.product || !s.product.priceToday) return false;\n  if (s.isClosedNow) return false;\n  const dA = km(A.lat, A.lon, ad.latitude, ad.longitude);\n  const dB = km(B.lat, B.lon, ad.latitude, ad.longitude);\n  const direct = km(A.lat, A.lon, B.lat, B.lon);\n  return (dA + dB) < direct + 60;         // detour of less than ~60km total\n});\nnear.sort(function (a, b) { return a.product.priceToday - b.product.priceToday; });\n\nif (!near.length) {\n  return [{ json: { servo: null, fuel_per_l: null, note: 'no FuelWatch site on this run' } }];\n}\nconst best = near[0];\nconst avg = near.reduce(function (n, s) { return n + s.product.priceToday; }, 0) / near.length;\nreturn [{ json: {\n  servo: best.siteName,\n  suburb: (best.address.location || '').replace(/\\b\\w/g, function (c) { return c.toUpperCase(); }),\n  brand: best.brandName,\n  fuel_per_l: +(best.product.priceToday / 100).toFixed(2),\n  cheaper_by_c: Math.round(avg - best.product.priceToday),\n  considered: near.length\n} }];"
+      },
+      "name": "Cheapest servo on the run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        440
+      ],
+      "notes": "Corridor filter, then cheapest. Prices come back in CENTS.",
+      "id": "b4873072-f60c-4266-99a3-7e55c415bf0c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Davo settings').first().json;\nconst w = $('Score the window').first().json;\nconst f = $('Cheapest servo on the run').first().json;\nconst route = $('Route to the ramp').first().json;\n\n// OSRM gives metres and seconds off the real road network.\nconst r0 = (route.routes && route.routes[0]) || {};\nconst km = r0.distance ? r0.distance / 1000 : 0;\nconst drive_min = r0.duration ? Math.round(r0.duration / 60) : 0;\n\nconst perL = f.fuel_per_l || 2.10;\nconst litres = km * 2 * cfg.vehicle.l_per_100km / 100;\nconst fuel = Math.round(litres * perL);\n\nconst turn = new Date(w.tide_turns_iso);\nconst leave = new Date(turn.getTime() - (drive_min + 45) * 60000);\nconst wake = new Date(leave.getTime() - 30 * 60000);\nconst hhmm = function (d) {\n  let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0');\n  const ap = h < 12 ? 'am' : 'pm'; h = h % 12 || 12; return h + ':' + m + ap;\n};\n\nreturn [{ json: {\n  km: +km.toFixed(1), drive_min: drive_min,\n  fuel_cost: fuel, fuel_each: Math.ceil(fuel / Math.max(1, cfg.crew_size)),\n  bait_cost: 9.90, ice_cost: 16.50, pie_rating: 4.8,\n  wake_at: hhmm(wake), leave_at: hhmm(leave), launch_at: hhmm(turn),\n  leave_iso: leave.toISOString()\n} }];"
+      },
+      "name": "Price the run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "notes": "Back-times the alarm off the tide turning, not off sunrise.",
+      "id": "90ec3981-bc64-473f-b5b7-122cb38baa3f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Davo settings').first().json;\nconst w = $('Score the window').first().json;\nconst b = $('What is biting').first().json;\nconst f = $('Cheapest servo on the run').first().json;\nconst r = $('Price the run').first().json;\n\nconst DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];\nconst MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nconst d = new Date(w.date_iso + 'T00:00:00');\nconst when = DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()];\n\n// SWELL EVENT format: hook in the title line, then one \"Icon Label: value\" row per\n// thing. On screen for under two seconds, so a labelled row beats a run of values.\nconst lines = [\n  '\\u{1F3A3} <b>GONE FISHING</b> \\u2014 the window just opened',\n  '',\n  '\\u{1F32C} <b>Forecast:</b> ' + w.wind_kn + 'kn ' + w.wind_dir + ', ' + w.wave_m + 'm, glassy',\n  '\\u{1F6A4} <b>Launch:</b> ' + r.launch_at + ' off ' + cfg.ramp.name + ' \\u00b7 wheels ' + r.leave_at,\n  '\\u{1F41F} <b>Biting:</b> ' + b.species + (b.spot ? ' \\u00b7 ' + b.spot : ''),\n  '\\u26FD <b>Fuel:</b> $' + (f.fuel_per_l || '?') + '/L at ' + (f.servo || 'the servo') +\n    (f.cheaper_by_c ? ' (' + f.cheaper_by_c + 'c under)' : ''),\n  '\\u{1F6D2} <b>Stop:</b> bait $' + r.bait_cost.toFixed(2) + ' \\u00b7 ice $' + r.ice_cost.toFixed(2) +\n    ' \\u00b7 pie ' + r.pie_rating + '\\u2605',\n  '\\u{1F4B0} <b>Split:</b> $' + r.fuel_each + ' each \\u00b7 ' + r.km + 'km',\n  '\\u{1F3C6} <b>Board:</b> <a href=\"' + cfg.board_url + '\">live leaderboard</a>',\n  '',\n  '\\u{1F447} Boys \\u2014 ' + when + '. You in?'\n];\nreturn [{ json: {\n  text: lines.join('\\n'),\n  poll_question: 'Catch fish or fold washing?',\n  trip: { date_iso: w.date_iso, place: w.place, leave_at: r.leave_at, launch_at: r.launch_at,\n          species: b.species, spot: b.spot, fuel_each: r.fuel_each, km: r.km,\n          leave_iso: r.leave_iso, status: 'proposed' }\n} }];"
+      },
+      "name": "Build the call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "id": "d172bad2-0017-467f-a5c5-7e822d8b575f"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Drop it in the boys chat",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        220
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "96495a3c-9ed1-4e17-99c7-59ef4240567e"
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/sendPoll",
+        "options": {},
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: YOUR_TELEGRAM_CHAT_ID, question: $json.poll_question, options: [\"I'm in \\u{1F3A3}\", \"Folding washing \\🧺\"], is_anonymous: false }) }}"
+      },
+      "name": "Send the poll",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        220
+      ],
+      "notes": "$credentials does NOT resolve in an HTTP expression - the token goes in the URL.",
+      "id": "ae80d619-84c1-4b3d-b069-791be0b60690"
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR-PROJECT.supabase.co/rest/v1/gf_trips",
+        "options": {},
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify([$json.trip]) }}"
+      },
+      "name": "Save the trip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        400
+      ],
+      "notes": "The trip row is the handoff to workflow 2. Nothing stays open for a day.",
+      "id": "5a932094-ddef-4ef4-80c3-45637380034c"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Is it on?\nWind, swell and tide from Open-Meteo. All three have to be good in the same daylight window or Davo stays quiet.",
+        "width": 480,
+        "height": 180,
+        "color": 4
+      },
+      "name": "note-62664",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        20
+      ],
+      "id": "d9ca27bc-81c5-4cfe-af0b-d4405f67e4ce"
+    },
+    {
+      "parameters": {
+        "content": "## 2. What's biting\nThere is no fishing-report API. We fetch a real reports page and let GPT-4o pull out the species and the ground.",
+        "width": 460,
+        "height": 170,
+        "color": 5
+      },
+      "name": "note-80324",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -100
+      ],
+      "id": "34a510e0-d0c6-4907-a567-200cdf5578b6"
+    },
+    {
+      "parameters": {
+        "content": "## 3. The run\nOSRM for the real drive. FuelWatch WA for the genuinely cheapest servo on the corridor - a real government API.",
+        "width": 460,
+        "height": 160,
+        "color": 6
+      },
+      "name": "note-73424",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        640
+      ],
+      "id": "b8c6c6de-fc53-4377-9a8d-d81d5fc3eed8"
+    },
+    {
+      "parameters": {
+        "content": "## 4. The call\nProposal + poll into the chat, and the trip is written to Supabase as `proposed` so workflow 2 can pick it up.",
+        "width": 420,
+        "height": 160,
+        "color": 3
+      },
+      "name": "note-4977",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        560
+      ],
+      "id": "bdba528b-8578-4cda-91bf-812ccc05051b"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "davo-poll",
+        "options": {}
+      },
+      "name": "Poll answer",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        1200
+      ],
+      "webhookId": "davo-poll",
+      "notes": "Set this as the bot's webhook, or relay poll_answer updates into it.",
+      "id": "6e27f6f1-d561-4061-8feb-ffafb271dec8"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram poll_answer webhook. option_ids [0] is \"I'm in\".\nconst b = $json.body || $json;\nconst a = b.poll_answer || {};\nconst inIt = Array.isArray(a.option_ids) && a.option_ids.indexOf(0) !== -1;\nconst who = (a.user && (a.user.first_name || a.user.username)) || 'someone';\nreturn [{ json: { in: inIt, who: who, user_id: a.user && a.user.id } }];"
+      },
+      "name": "Who tapped in",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        1200
+      ],
+      "id": "7aa11903-df80-44c8-8e5c-e73b0613af7c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.in }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "In?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -280,
+        1200
+      ],
+      "id": "a7d133af-1b2d-4c24-a68a-fca52debe728"
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR-PROJECT.supabase.co/rest/v1/gf_trips?select=*&status=eq.proposed&order=created_at.desc&limit=1",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_KEY"
+            }
+          ]
+        }
+      },
+      "name": "Load the trip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60,
+        1100
+      ],
+      "notes": "The handoff from workflow 1. No execution has to stay open.",
+      "id": "af25dd0b-44bc-4042-b583-4083decd9a50"
+    },
+    {
+      "parameters": {
+        "jsCode": "const t = $('Load the trip').first().json;\nconst trip = Array.isArray(t) ? t[0] : t;\nconst me = $('Who tapped in').first().json;\nconst bring = ['rods + tackle', 'licence', 'sunnies', 'a jumper for the run out', 'esky'];\n\nconst lines = [\n  '\\u{1F3A3} <b>' + me.who + \", you're in.</b>\",\n  '',\n  '\\u23F0 <b>Alarm:</b> ' + (trip.wake_at || '4:00am') + ' \\u00b7 wheels ' + trip.leave_at,\n  '\\u{1F6A4} <b>Launch:</b> ' + trip.launch_at + ' \\u00b7 ' + trip.km + 'km',\n  '\\u{1F41F} <b>Target:</b> ' + trip.species + ' \\u00b7 ' + trip.spot,\n  '\\u{1F4B0} <b>Your share:</b> $' + trip.fuel_each,\n  '',\n  '<b>Bring:</b> ' + bring.join(', ') + '.',\n  '',\n  '\\u{1F4F8} Photo every fish and send it to me. It goes on the board or it did not happen.'\n];\nreturn [{ json: { text: lines.join('\\n'), who: me.who } }];"
+      },
+      "name": "Their brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        1100
+      ],
+      "id": "983d00c6-5fd6-4e1c-b8ea-a8196e42d2e6"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Send them the brief",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        1100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "2332edd8-d5de-44a2-952b-f8730f4a59de"
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary"
+        },
+        "start": "={{ $('Load the trip').first().json[0].leave_iso }}",
+        "end": "={{ $('Load the trip').first().json[0].leave_iso }}",
+        "additionalFields": {
+          "summary": "=GONE FISHING - wheels at {{ $('Load the trip').first().json[0].leave_at }}"
+        }
+      },
+      "name": "Set the alarm",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        1100
+      ],
+      "notes": "You cannot write someone else's phone alarm. A calendar event with an alert does the same job.",
+      "id": "800357ad-e69e-4aa4-8b0d-4e01b4ae472c"
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR-PROJECT.supabase.co/rest/v1/gf_trips?status=eq.proposed",
+        "options": {},
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: \"locked\" }) }}"
+      },
+      "name": "Lock the trip in",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        380,
+        1280
+      ],
+      "id": "9f96802a-9088-4616-80e3-5dbcd3a0e6a9"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🧺 <b>{{ $json.who }}</b> is folding washing.",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Folding washing then",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -60,
+        1320
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "c9b8ea6e-a4cd-4e80-b19a-dd803411a674"
+    },
+    {
+      "parameters": {
+        "content": "## Who's in\nEveryone who taps **I'm in** gets their own brief: alarm, wheels-up, target species, their share, and the bring-list. Then the trip flips to `locked`.",
+        "width": 520,
+        "height": 170,
+        "color": 4
+      },
+      "name": "note-31821",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        1460
+      ],
+      "id": "aab23164-7830-4916-80e2-19cb441a0e23"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "davo-location",
+        "options": {}
+      },
+      "name": "Boat location",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        2100
+      ],
+      "webhookId": "davo-location",
+      "notes": "OwnTracks in HTTP mode, or a two-line iOS Shortcut. Apple has no Find My API.",
+      "id": "6618bc67-a191-46de-8606-33bbf055e672"
+    },
+    {
+      "parameters": {
+        "jsCode": "// OwnTracks posts {lat, lon, tst}. An iOS Shortcut can post the same shape.\n// Apple exposes NO Find My API and never has, so this is the workaround: it is\n// free, open source, and takes about five minutes on the phone.\nconst b = $json.body || $json;\nconst lat = Number(b.lat != null ? b.lat : b.latitude);\nconst lon = Number(b.lon != null ? b.lon : b.longitude);\nconst ramp = { lat: -30.3050, lon: 115.0393 };\n\nconst km = function (a, b2, c, d) {\n  const R = 6371, r = Math.PI / 180;\n  const x = Math.sin((c - a) * r / 2) ** 2 +\n            Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b2) * r / 2) ** 2;\n  return 2 * R * Math.asin(Math.sqrt(x));\n};\nconst dist = km(lat, lon, ramp.lat, ramp.lon);\n\n// \"heading in\" = inside 8km of the ramp and closer than the last ping we saw\nconst prev = Number(b.prev_km || 999);\nconst heading_in = dist < 8 && dist < prev;\n\nreturn [{ json: { lat: lat, lon: lon, km_to_ramp: +dist.toFixed(2),\n                  heading_in: heading_in, eta_min: Math.round(dist / 25 * 60) } }];"
+      },
+      "name": "Where is the boat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        2100
+      ],
+      "id": "03d73d87-a642-4b9a-87e8-5937688ac9a3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.heading_in }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Heading in?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -280,
+        2100
+      ],
+      "id": "340f9bc3-26bc-4a59-9aaf-4785da83342c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const h = $('Where is the boat' ).first().json;\nreturn [{ json: {\n  phone: '+61800000000',\n  task: 'You are calling on behalf of a group of four coming off the water. Ask them to '\n      + 'hold a table for four in about ' + (h.eta_min + 25) + ' minutes, and to have four '\n      + 'cold beers poured for when they walk in. Be brief and friendly.',\n  eta_min: h.eta_min + 25\n} }];"
+      },
+      "name": "What to tell the pub",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        2000
+      ],
+      "id": "769a6744-ce99-44d8-99f3-3f05c62cc67b"
+    },
+    {
+      "parameters": {
+        "url": "https://api.bland.ai/v1/calls",
+        "options": {},
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YOUR_BLAND_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ phone_number: $json.phone, task: $json.task, voice: 'josh', max_duration: 3 }) }}"
+      },
+      "name": "Call the pub (Bland.ai)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        2000
+      ],
+      "notes": "No consumer booking API exists in AU. A real call is still automation.",
+      "id": "518fed81-ff14-408c-88dd-ca5578841e0c"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🍺 <b>Beers are on.</b> Table for four in {{ $json.eta_min }} min.",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Beers are on",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        2000
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "d9d57350-4a5d-4857-aecf-93e470967588"
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "minutes"
+      },
+      "name": "Wait, still out there",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -60,
+        2220
+      ],
+      "id": "1b4617b8-2a22-452d-88c2-3ae69f11b2ec"
+    },
+    {
+      "parameters": {
+        "content": "## Heading in\nApple does **not** expose a Find My API and will not. OwnTracks (free, open source, HTTP mode) or an iOS Shortcut posts the same lat/lon to this webhook. Inside 8km of the ramp and closing, the pub gets a real phone call.",
+        "width": 560,
+        "height": 190,
+        "color": 4
+      },
+      "name": "note-93373",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        2360
+      ],
+      "id": "f6cbc2fa-988f-4f56-8477-e6459c3bc07d"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "davo-catch",
+        "options": {}
+      },
+      "name": "Webhook: a fish",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        3000
+      ],
+      "webhookId": "davo-catch",
+      "notes": "POST {angler, group_code, photo_b64}. base64, not a URL: OpenAI fetches a remote URL server-side and plenty of hosts refuse it (Wikimedia 400s it).",
+      "id": "29ab08e1-2323-47c2-92cf-68a4c5d7a2f0"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "options": {},
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENAI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model:'gpt-4o', max_tokens:200, messages:[{role:'user', content:[{type:'text',text:\"You are identifying a fish someone just caught in Western Australia. Reply with ONLY a JSON object, no prose and no code fence, shaped exactly: {\\\"species\\\":\\\"<common name>\\\",\\\"length_cm\\\":<number>,\\\"confidence\\\":<0-1>,\\\"note\\\":\\\"<max 12 words>\\\"}. Estimate length_cm from the fish's size relative to the hands, rod or esky holding it. If it is not a fish, set species to \\\"not a fish\\\" and length_cm to 0.\"},{type:'image_url',image_url:{url:$json.body.photo_b64 || $json.body.photo_url}}]}]}) }}"
+      },
+      "name": "Identify the fish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -500,
+        3000
+      ],
+      "notes": "Verified live: a real photo returned sardine / 15cm / 0.9 for about US$0.0025.",
+      "id": "ece18c07-b3bb-4d91-876c-d6a52cc62077"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The model is told to return bare JSON; models fence it anyway. Strip, then parse,\n// and never let a bad reply kill the run.\nconst raw = ($json.choices && $json.choices[0] && $json.choices[0].message.content) || '';\nlet fish;\ntry { fish = JSON.parse(String(raw).replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()); }\ncatch (e) { return [{ json: { ok: false, reason: 'could not read the model reply' } }]; }\nconst hook = $('Webhook: a fish').first().json.body || {};\nconst len = Number(fish.length_cm);\nif (!fish.species || String(fish.species).toLowerCase() === 'not a fish')\n  return [{ json: { ok: false, reason: 'that is not a fish', angler: hook.angler } }];\nif (!isFinite(len) || len <= 0 || len > 400)\n  return [{ json: { ok: false, reason: 'could not size it', angler: hook.angler } }];\nreturn [{ json: { ok: true, angler: hook.angler, group_code: hook.group_code || 'BOYS',\n                  species: String(fish.species).slice(0, 40), length_cm: Math.round(len),\n                  note: fish.note || '' } }];"
+      },
+      "name": "Read the fish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        3000
+      ],
+      "id": "66ba95f4-f921-4ee6-837e-d43ead890f63"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "A real fish?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60,
+        3000
+      ],
+      "id": "f9f042eb-e766-44fd-9971-a2df5807dcc3"
+    },
+    {
+      "parameters": {
+        "url": "https://gone-fishing-board.vercel.app/api/catch",
+        "options": {},
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-davo-secret",
+              "value": "YOUR_INGEST_SECRET"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ group_code:$json.group_code, angler:$json.angler, species:$json.species, length_cm:$json.length_cm }) }}"
+      },
+      "name": "Put it on the board",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        2920
+      ],
+      "notes": "Machine-only endpoint behind a shared secret, so nobody can type themselves a 90cm mulloway.",
+      "id": "6dd4fdcb-432f-4085-a647-7bc5590a4583"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $('Read the fish').first().json;\nif (!c.ok) return [{ json: { text: '\\u{1F440} Davo had a look and ' + (c.reason || 'could not tell') + '. Send another photo.' } }];\nconst lines = [\n  '\\u{1F41F} <b>' + c.angler + '</b> just landed a <b>' + c.species + '</b>',\n  '<b>' + c.length_cm + 'cm</b> · ' + c.length_cm + ' points',\n  c.note ? '<i>' + c.note + '</i>' : '',\n  '', '\\u{1F3C6} Board: https://gone-fishing-board.vercel.app'\n].filter(Boolean);\nreturn [{ json: { text: lines.join('\\n') } }];"
+      },
+      "name": "Say it in the chat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        3000
+      ],
+      "id": "b5714f61-4ec3-4bc7-bf08-a3590d0f64ca"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "name": "Tell the boys",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        600,
+        3000
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL", "name": "Your Telegram Bot"
+        }
+      },
+      "id": "60bd5581-e88f-4afa-b8fd-60b8295b4f51"
+    },
+    {
+      "parameters": {
+        "content": "## The board\nPhotograph the fish. GPT-4o names the species and estimates the length from whatever is holding it, and it lands on the live leaderboard before you have re-baited.",
+        "width": 520,
+        "height": 170,
+        "color": 7
+      },
+      "name": "note-13199",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        2760
+      ],
+      "id": "804d75dc-d4ee-4e93-8a03-a2b19df658a2"
+    }
+  ],
+  "connections": {
+    "Every 3 hours": {
+      "main": [
+        [
+          {
+            "node": "Davo settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run it now": {
+      "main": [
+        [
+          {
+            "node": "Davo settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Davo settings": {
+      "main": [
+        [
+          {
+            "node": "Wind forecast",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Marine forecast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wind forecast": {
+      "main": [
+        [
+          {
+            "node": "Score the window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marine forecast": {
+      "main": [
+        [
+          {
+            "node": "Score the window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score the window": {
+      "main": [
+        [
+          {
+            "node": "Is it on?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it on?": {
+      "main": [
+        [
+          {
+            "node": "Fishing reports",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to the ramp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fuel prices (FuelWatch WA)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fishing reports": {
+      "main": [
+        [
+          {
+            "node": "What is biting (GPT-4o)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is biting (GPT-4o)": {
+      "main": [
+        [
+          {
+            "node": "What is biting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fuel prices (FuelWatch WA)": {
+      "main": [
+        [
+          {
+            "node": "Cheapest servo on the run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is biting": {
+      "main": [
+        [
+          {
+            "node": "Price the run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to the ramp": {
+      "main": [
+        [
+          {
+            "node": "Price the run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cheapest servo on the run": {
+      "main": [
+        [
+          {
+            "node": "Price the run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Price the run": {
+      "main": [
+        [
+          {
+            "node": "Build the call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the call": {
+      "main": [
+        [
+          {
+            "node": "Drop it in the boys chat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save the trip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drop it in the boys chat": {
+      "main": [
+        [
+          {
+            "node": "Send the poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll answer": {
+      "main": [
+        [
+          {
+            "node": "Who tapped in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Who tapped in": {
+      "main": [
+        [
+          {
+            "node": "In?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In?": {
+      "main": [
+        [
+          {
+            "node": "Load the trip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Folding washing then",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load the trip": {
+      "main": [
+        [
+          {
+            "node": "Their brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Their brief": {
+      "main": [
+        [
+          {
+            "node": "Send them the brief",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lock the trip in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send them the brief": {
+      "main": [
+        [
+          {
+            "node": "Set the alarm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Boat location": {
+      "main": [
+        [
+          {
+            "node": "Where is the boat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Where is the boat": {
+      "main": [
+        [
+          {
+            "node": "Heading in?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Heading in?": {
+      "main": [
+        [
+          {
+            "node": "What to tell the pub",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait, still out there",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What to tell the pub": {
+      "main": [
+        [
+          {
+            "node": "Call the pub (Bland.ai)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call the pub (Bland.ai)": {
+      "main": [
+        [
+          {
+            "node": "Beers are on",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: a fish": {
+      "main": [
+        [
+          {
+            "node": "Identify the fish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify the fish": {
+      "main": [
+        [
+          {
+            "node": "Read the fish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the fish": {
+      "main": [
+        [
+          {
+            "node": "A real fish?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A real fish?": {
+      "main": [
+        [
+          {
+            "node": "Put it on the board",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Say it in the chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Put it on the board": {
+      "main": [
+        [
+          {
+            "node": "Say it in the chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Say it in the chat": {
+      "main": [
+        [
+          {
+            "node": "Tell the boys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

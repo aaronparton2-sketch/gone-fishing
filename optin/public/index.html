@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gone Fishing | Davo by Aaron Automates</title>
+<meta name="description" content="An n8n agent that watches the wind, swell and tide, gets the boys out of bed, finds the cheapest fuel and the best pie, and puts every fish on a board nobody can lie to. Get the workflow, free.">
+<meta property="og:title" content="Davo, the agent that runs the fishing trip">
+<meta property="og:description" content="Watches the forecast, prices the run, and puts every fish on a live board. Get the free n8n workflow.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4EFE7;         /* warm sand */
+    --card:#FFFFFF;
+    --ink:#0F1E2C;           /* pre-dawn navy */
+    --muted:#5D6977;
+    --line:#E3DBCF;
+    --accent:#E0522A;        /* sunrise over the Indian Ocean */
+    --accent-deep:#C4431E;
+    --data:#0B7686;          /* ocean teal readout */
+    --ok:#1D7A46;
+    --tg:#2AABEE; --tg-soft:#E4F3FC; --tg-ink:#17679A;
+    --z1:#0B7686; --z2:#3C4B8F; --z3:#7457A3; --z4:#C0558A; --z5:#E0522A; --z6:#EFA23A;
+    --radius:14px;
+    --display:"Bricolage Grotesque",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--body);color:var(--ink);
+    background:
+      radial-gradient(1200px 380px at 82% -8%, rgba(224,82,42,.12), transparent 60%),
+      radial-gradient(900px 420px at 5% 0%, rgba(11,118,134,.10), transparent 55%),
+      var(--paper);
+    line-height:1.55;-webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--data)}
+  button{font:inherit;cursor:pointer}
+
+  .site-header{position:sticky;top:0;z-index:40;
+    background:rgba(244,239,231,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .site-header .bar{max-width:1060px;margin:0 auto;padding:12px 20px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .wordmark{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.12em;white-space:nowrap}
+  .wordmark .tilde{color:var(--accent)}
+  .wordmark .by{color:var(--muted);font-weight:400;letter-spacing:.06em}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:0;border-radius:10px;font-weight:600;text-decoration:none;
+    transition:background-color .15s ease, transform .1s ease}
+  .btn-accent{background:var(--accent);color:#fff;padding:10px 18px;font-size:15px;
+    box-shadow:0 1px 2px rgba(15,30,44,.14)}
+  .btn-accent:hover{background:var(--accent-deep)}
+  .btn-accent:active{transform:translateY(1px)}
+  .btn:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid rgba(224,82,42,.45);outline-offset:2px}
+
+  .hero{max-width:1060px;margin:0 auto;padding:56px 20px 24px;
+    display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:start}
+  .hero-copy{min-width:0}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--data);margin-bottom:18px}
+  h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,4.7vw,54px);
+    line-height:1.05;letter-spacing:-.015em;margin-bottom:18px}
+  h1 .flow{color:var(--accent)}
+  .subhead{font-size:18px;color:var(--muted);max-width:48ch;margin-bottom:26px}
+  .subhead strong{color:var(--ink);font-weight:600}
+
+  /* the actual morning: forecast readout, the Telegram ask, the fallout */
+  .readout{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:32px;max-width:540px;box-shadow:0 1px 3px rgba(15,30,44,.06)}
+  .readout .meta{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);
+    font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:12px}
+  .readout .meta .ex{color:var(--data)}
+  .bubble{background:#F1EEE8;border-radius:14px 14px 14px 4px;padding:11px 13px 12px;
+    font-size:14.5px;line-height:1.5;margin-bottom:10px}
+  .bubble .who{display:block;font-family:var(--mono);font-size:11px;font-weight:600;
+    letter-spacing:.04em;color:var(--data);margin-bottom:6px}
+  .breaks{font-family:var(--mono);font-size:13px;line-height:1.8;margin:2px 0 4px}
+  .breaks .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline}
+  .breaks .row .lbl{color:var(--muted)}
+  .breaks .row b{font-weight:600}
+  .breaks .row.pick b,.breaks .row.pick .lbl{color:var(--accent)}
+  .bubble.tg{background:var(--tg-soft)}
+  .bubble.tg .who{color:var(--tg-ink)}
+  .tg-keys{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+  .tg-key{background:#fff;color:var(--tg-ink);border:1px solid #BFE1F5;border-radius:9px;
+    padding:8px 6px;text-align:center;font-weight:600;font-size:14px;white-space:nowrap}
+  .tg-key.picked{border:2px solid var(--tg);box-shadow:0 0 0 3px rgba(42,171,238,.15)}
+  .readout .coach{margin-top:4px;padding-top:10px;border-top:1px dashed var(--line);
+    font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--muted)}
+  .readout .coach .tag{color:var(--accent);font-weight:600}
+
+  .inside h2{font-family:var(--display);font-size:19px;font-weight:700;margin-bottom:14px}
+  .inside ul{list-style:none}
+  .inside li{display:flex;gap:12px;align-items:flex-start;padding:7px 0;font-size:15.5px}
+  .inside li .dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%;margin-top:7px}
+  .inside li:nth-child(1) .dot{background:var(--z1)}
+  .inside li:nth-child(2) .dot{background:var(--z2)}
+  .inside li:nth-child(3) .dot{background:var(--z3)}
+  .inside li:nth-child(4) .dot{background:var(--z4)}
+  .inside li:nth-child(5) .dot{background:var(--z5)}
+  .inside li:nth-child(6) .dot{background:var(--z6)}
+  .inside li span b{font-weight:600}
+  .inside .aside{margin-top:8px;font-size:13.5px;color:var(--muted);font-style:italic}
+
+  .get{margin-top:30px;background:rgba(255,255,255,.55);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px 20px}
+  .get h2{margin-bottom:8px}
+  .get ul{list-style:none}
+  .get li{padding:5px 0;display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
+  .get li .tick{flex:0 0 auto;width:20px;height:20px;border-radius:50%;margin-top:2px;
+    background:#E7F4EC;color:var(--ok);display:flex;align-items:center;justify-content:center}
+  .get .free{margin-top:10px;font-size:14px;font-weight:600}
+
+  .signup-card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 10px 30px rgba(15,30,44,.10);padding:26px;position:sticky;top:76px}
+  .cover-wrap{margin:-26px -26px 22px;border-radius:18px 18px 0 0;overflow:hidden}
+  .cover{display:flex;min-height:216px;align-items:flex-end;justify-content:center;
+    flex-direction:column;gap:6px;padding:26px 24px 20px;text-align:right;position:relative;
+    background:linear-gradient(180deg,#0F1E2C 0%,#1D3350 40%,#7B4A5C 72%,#E0733C 100%);color:#fff;overflow:hidden}
+  .cover .stars{position:absolute;inset:0;opacity:.5;
+    background-image:radial-gradient(1.2px 1.2px at 14% 16%,#fff 50%,transparent 51%),
+      radial-gradient(1px 1px at 30% 30%,#fff 50%,transparent 51%),
+      radial-gradient(1.3px 1.3px at 64% 14%,#fff 50%,transparent 51%),
+      radial-gradient(1px 1px at 80% 26%,#fff 50%,transparent 51%)}
+  .cover svg{position:absolute;left:16px;bottom:14px;opacity:.95}
+  .cover .ct{position:relative;font-family:var(--display);font-weight:800;font-size:27px;line-height:1.05}
+  .cover .cs{position:relative;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;
+    text-transform:uppercase;opacity:.85}
+  .signup-card h2{font-family:var(--display);font-size:22px;font-weight:700;margin-bottom:6px}
+  .signup-card .say{font-size:14.5px;color:var(--muted);margin-bottom:18px}
+  label{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .fld{margin-bottom:14px}
+  input{width:100%;background:#FBF8F3;border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:13px 14px;font:500 16px var(--body)}
+  input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(224,82,42,.14)}
+  .submit{width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;
+    padding:15px 20px;font-family:var(--display);font-weight:700;font-size:17px}
+  .submit:hover{background:var(--accent-deep)}
+  .submit:disabled{opacity:.6}
+  .fine{margin-top:12px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
+  .err{background:#FDEDEA;border:1px solid #F3BCB0;color:#9B3016;border-radius:10px;
+    padding:11px 13px;font-size:14px;margin-bottom:14px}
+
+  .done{text-align:center}
+  .done .tick-big{width:60px;height:60px;border-radius:50%;margin:2px auto 16px;
+    background:#E7F4EC;color:var(--ok);display:flex;align-items:center;justify-content:center}
+  .done h2{margin-bottom:8px}
+  .done p{color:var(--muted);font-size:14.5px;margin-bottom:20px}
+  .repo{display:inline-flex;align-items:center;gap:10px;background:#0F1E2C;color:#fff;
+    border-radius:10px;padding:14px 20px;text-decoration:none;font-weight:600;font-size:15.5px}
+  .repo:hover{background:#1D3350;color:#fff}
+
+  footer{max-width:1060px;margin:40px auto 0;padding:22px 20px 60px;border-top:1px solid var(--line);
+    font-size:13.5px;color:var(--muted);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .hide{display:none!important}
+  @media (max-width:880px){
+    .hero{grid-template-columns:1fr;gap:34px;padding-top:36px}
+    .signup-card{position:static}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="bar">
+    <div class="wordmark"><span class="tilde">~</span>&nbsp;DAVO <span class="by">/ by aaron automates</span></div>
+    <a class="btn btn-accent" href="#get">Get the workflow</a>
+  </div>
+</header>
+
+<main class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">n8n · free · the whole build</div>
+    <h1>He watches the forecast so you <span class="flow">never miss a window.</span></h1>
+    <p class="subhead">
+      Davo checks the wind, swell and tide every three hours. The moment all three line
+      up he works out what's biting, prices the run, finds the cheapest fuel and the best
+      pie on the way, and <strong>drops it in the group chat with a poll</strong>. Then he
+      puts every fish anyone catches on a board nobody can lie to.
+    </p>
+
+    <div class="readout">
+      <div class="meta"><span>A real morning</span><span class="ex">Karratha · live forecast</span></div>
+
+      <div class="bubble">
+        <span class="who">DAVO · 03:12</span>
+        <div class="breaks">
+          <div class="row pick"><span class="lbl">Forecast</span><b>4kn E · 0.2m · glassy</b><span></span></div>
+          <div class="row"><span class="lbl">Launch</span><b>8:00am off the ramp</b><span></span></div>
+          <div class="row"><span class="lbl">Biting</span><b>Spanish mackerel</b><span></span></div>
+          <div class="row"><span class="lbl">Fuel</span><b>$2.33/L · 24c under</b><span></span></div>
+          <div class="row"><span class="lbl">Split</span><b>$10 each · 56.7km</b><span></span></div>
+        </div>
+      </div>
+
+      <div class="bubble tg">
+        <span class="who">TELEGRAM POLL</span>
+        Catch fish or fold washing?
+        <div class="tg-keys">
+          <div class="tg-key picked">I'm in 🎣</div>
+          <div class="tg-key">Folding washing 🧺</div>
+        </div>
+      </div>
+
+      <div class="coach">
+        <span class="tag">→</span> alarm set, wheels at 6:28am, bring list sent<br>
+        <span class="tag">→</span> every fish photographed goes on the live board<br>
+        <span class="tag">→</span> boat turns for home, the pub gets a phone call
+      </div>
+    </div>
+
+    <section class="inside">
+      <h2>What's actually in it</h2>
+      <ul>
+        <li><span class="dot"></span><span><b>Real wind, swell and tide.</b> Open-Meteo, free and keyless. The marine endpoint returns the actual tide, not a model of one.</span></li>
+        <li><span class="dot"></span><span><b>Genuinely cheapest fuel.</b> Live FuelWatch WA — 946 stations, today's price, filtered to your driving corridor.</span></li>
+        <li><span class="dot"></span><span><b>What's biting.</b> Reads a real reports page and pulls out the species and the ground.</span></li>
+        <li><span class="dot"></span><span><b>A leaderboard you can't lie to.</b> Photograph the fish; GPT-4o names it and sizes it.</span></li>
+        <li><span class="dot"></span><span><b>Books the pub.</b> When the boat turns for home, a real phone call gets the first round poured.</span></li>
+        <li><span class="dot"></span><span><b>A demo build with no fake data.</b> Same workflow, pointed at a coast that's on today.</span></li>
+      </ul>
+      <p class="aside">And an honest list of what has no API and how I worked around it.</p>
+    </section>
+
+    <section class="get" id="get">
+      <h2>What you get</h2>
+      <ul>
+        <li><span class="tick">✓</span><span>Two n8n workflows — the real one and the demo build</span></li>
+        <li><span class="tick">✓</span><span>The leaderboard web app, source and schema</span></li>
+        <li><span class="tick">✓</span><span>This opt-in page, so you can run your own</span></li>
+      </ul>
+      <p class="free">Free. MIT. No strings.</p>
+    </section>
+  </div>
+
+  <aside>
+    <div class="signup-card">
+      <div class="cover-wrap">
+        <div class="cover">
+          <div class="stars"></div>
+          <svg width="112" height="56" viewBox="0 0 150 80" fill="none" aria-hidden="true">
+            <path d="M0 58 L150 58 L134 76 L16 76 Z" fill="#E9EEF2"/>
+            <path d="M6 58 L144 58 L132 72 L18 72 Z" fill="#FBFDFE"/>
+            <rect x="60" y="28" width="9" height="32" rx="4" fill="#3C4B5E"/>
+            <circle cx="64.5" cy="20" r="11" fill="#3C4B5E"/>
+            <path d="M69 26 L128 -12" stroke="#EFA23A" stroke-width="3.5" stroke-linecap="round"/>
+          </svg>
+          <div class="ct">Gone Fishing</div>
+          <div class="cs">the agent that runs the trip</div>
+        </div>
+      </div>
+
+      <div id="vForm">
+        <h2>Send me the build</h2>
+        <p class="say">Tell me where to send it and the repo opens up.</p>
+        <div id="err" class="err hide"></div>
+        <div class="fld"><label for="fName">Your name</label>
+          <input id="fName" type="text" maxlength="60" placeholder="Davo" autocomplete="name"></div>
+        <div class="fld"><label for="fMail">Email</label>
+          <input id="fMail" type="email" maxlength="120" placeholder="you@example.com" autocomplete="email"></div>
+        <button class="submit" id="go">Send it over</button>
+        <p class="fine">No list, no drip sequence. One email if I ship something big.</p>
+      </div>
+
+      <div id="vDone" class="done hide">
+        <div class="tick-big">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+        </div>
+        <h2 id="dHead">You're in.</h2>
+        <p id="dSay">Import the workflows, swap in your keys, point it at your coast.</p>
+        <a class="repo" id="dLink" href="#" target="_blank" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.89.87 2.35.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          Open the repo
+        </a>
+        <p class="fine" style="margin-top:18px">Star it if it's useful. Break it if it isn't.</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span>Built by <a href="https://myceliumai.com.au">Mycelium AI</a> in Perth.</span>
+  <span>MIT licensed. Go catch something.</span>
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const err = (m) => { const e = $('err'); e.textContent = m; e.classList.remove('hide'); };
+
+$('go').onclick = async () => {
+  $('err').classList.add('hide');
+  const body = { name: $('fName').value.trim(), email: $('fMail').value.trim() };
+  if (body.name.length < 2) return err('Pop your name in.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return err("That email doesn't look right.");
+  const b = $('go'); b.disabled = true; b.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+    $('dLink').href = d.repo;
+    $('dHead').textContent = d.returning ? ('Welcome back, ' + d.name + '.') : ("You're in, " + d.name + '.');
+    $('vForm').classList.add('hide'); $('vDone').classList.remove('hide');
+  } catch (e) { err(e.message); }
+  finally { b.disabled = false; b.textContent = 'Send it over'; }
+};
+['fName','fMail'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); }));
+</script>
+</body>
+</html>
