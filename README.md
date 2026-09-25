@@ -201,3 +201,7 @@ vercel deploy --prod
 ---
 
 <p align="center"><sub>MIT. Built by <a href="https://myceliumai.com.au">Mycelium AI</a>. Go catch something.</sub></p>
+
+---
+
+**Built by [Mycelium AI](https://www.myceliumai.com.au)**, a Perth agency that builds websites, runs Google and Meta ads, and automates the admin for small businesses. Follow the builds on Instagram at [@aaronautomates](https://www.instagram.com/aaronautomates/).
